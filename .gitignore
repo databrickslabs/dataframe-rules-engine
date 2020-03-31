@@ -1,0 +1,12 @@
+/.idea/
+*.iml
+#local spark context data from unit tests
+spark-warehouse/
+
+#Build dirctory for maven/sbt
+target/
+project/project/
+project/target/
+*.DS_Store
+/target/
+/project/
