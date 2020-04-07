@@ -1,4 +1,4 @@
-# dataframe-rules-engine
+# Dataframe-rules-engine
 Simplified Validation for Production Workloads
 
 ## Project Description
