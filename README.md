@@ -4,14 +4,12 @@ Simplified Validation for Production Workloads
 ## Project Description
 As pipelines move from bronze to gold, it's very common that some level of governance be performed in
 Silver or at various places in the pipeline. The need for business rule validation is very common.
-Databricks recognizes this and as such is building Delta Pipelines with Expectations are coming soon 
-and will likely reduce the need for a rules engine like this but it's possible that simple rules are needed
-where Delta Pipelines are a bit overkill or not in line with the overall workload. After the release
-of Delta Pipelines and Expectations the code base will be reviewed and adjusted appropriately. That may mean to 
-extend Expectations, add a simplified wrapper, or both, or none. We'll have to wait and see what Delta 
-Pipelines and Expectations looks like when it's released.
+Databricks recognizes this and, as such, is building Delta Pipelines with Expectations. 
+Upon release of Delta Pipelines, the need for this package will be re-evaluated and the code base will 
+be adjusted appropriately. This is serves an immediate need and Delta Expectations is expected to be a more, 
+full-fledged and robust example of this functionality.
 
-Introducing Databricks Labs - Rules Engine, a simple solution for validating data in dataframes before you
+Introducing Databricks Labs - dataframe-rules-engine, a simple solution for validating data in dataframes before you
 move the data to production and/or in-line (coming soon). 
 
 ![Alt Text](images/Rules_arch.png)
@@ -151,7 +149,8 @@ Some ideas of great adds are:
 * Add a quarantine pattern 
     * Enable a configuration to a Ruleset to identify records that didn't pass the validations and add
     them to a predefined quarantine zone.
-* Add logic to attempt to auto-handle certain types of failures based on common business patterns 
+* Add logic to attempt to auto-handle certain types of failures based on common business patterns
+* When Delta Pipelines feature is release, simplify this package by wrapping the logic with pipelines.
 
 
 ## Legal Information

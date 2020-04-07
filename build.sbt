@@ -1,4 +1,4 @@
-name := "Rules_Engine"
+name := "dataframe-rules-engine"
 
 organization := "com.databricks"
 
