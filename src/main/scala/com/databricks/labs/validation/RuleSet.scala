@@ -1,15 +1,17 @@
 package com.databricks.labs.validation
 
-import com.databricks.labs.validation.utils.{MinMaxFunc, SparkSessionWrapper}
-import com.databricks.labs.validation.utils.Structures.{Bounds, MinMaxRuleDef, Result}
-import com.databricks.labs.validation.utils.Helpers._
+import com.databricks.labs.validation.utils.SparkSessionWrapper
+import com.databricks.labs.validation.utils.Structures.{Bounds, MinMaxRuleDef}
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.sql.{Column, DataFrame, RelationalGroupedDataset}
-import org.apache.spark.sql.catalyst.expressions.NamedExpression
-import org.apache.spark.sql.functions
-import org.apache.spark.sql.types.MetadataBuilder
+import org.apache.spark.sql.{Column, DataFrame}
+import org.apache.spark.sql.functions.{max, min}
 
 import scala.collection.mutable.ArrayBuffer
+
+/**
+ * A grouping of rules to be applied to a dataframe or grouped dataframe. The input will never be grouped
+ * but if the _groupBys are populated it's assumed the rules herein are applied by group
+ */
 
 class RuleSet extends SparkSessionWrapper {
 
@@ -17,12 +19,12 @@ class RuleSet extends SparkSessionWrapper {
 
   import spark.implicits._
 
-  private var _df: Any = _
-  private var _isGrouped: Boolean = _
-  private val rulesReport = ArrayBuffer[Result]()
+  private var _df: DataFrame = _
+  private var _isGrouped: Boolean = false
+  private var _groupBys: Seq[String] = Seq.empty[String]
   private val _rules = ArrayBuffer[Rule]()
 
-  private def setDF(value: Any): this.type = {
+  private def setDF(value: DataFrame): this.type = {
     _df = value
     this
   }
@@ -32,81 +34,109 @@ class RuleSet extends SparkSessionWrapper {
     this
   }
 
-  private def getDf: Any = _df
-  private def getGroupedFlag: Boolean = _isGrouped
-  private def getRules: Array[Rule] = _rules.toArray
+  private def setGroupByCols(value: Seq[String]): this.type = {
+    _groupBys = value
+    _isGrouped = true
+    this
+  }
 
+  private[validation] def getDf: DataFrame = _df
 
+  private[validation] def isGrouped: Boolean = _isGrouped
+
+  private[validation] def getGroupBys: Seq[String] = _groupBys
+
+  def getRules: Array[Rule] = _rules.toArray
+
+  /**
+   * Generates two rules for each minmax definition one for the lower and one for the upper
+   * Only valid for Bounds rule types
+   * @param minMaxRuleDefs One or many minmax definitions as defined in Structures
+   *                       Defined as case class to ensure proper usage
+   * @return Array[Rule] that can be added to the RuleSet
+   */
+  def addMinMaxRules(minMaxRuleDefs: MinMaxRuleDef*): this.type = {
+
+    add(minMaxRuleDefs.flatMap(ruleDef => {
+      Seq(
+        Rule(s"${ruleDef.ruleName}_min", min(ruleDef.column), ruleDef.bounds),
+        Rule(s"${ruleDef.ruleName}_max", max(ruleDef.column), ruleDef.bounds)
+      )
+    }).toArray)
+    this
+  }
+
+  /**
+   * Builder pattern used to add individual MinMax rule sets after the RuleSet has been instantiated
+   * @param ruleName name of rule
+   * @param inputColumn input column (base or calculated)
+   * @param boundaries lower/upper boundaries as defined by Bounds
+   * @param by groupBy cols
+   * @return RuleSet
+   */
   def addMinMaxRules(ruleName: String,
                      inputColumn: Column,
                      boundaries: Bounds,
                      by: Column*
                     ): this.type = {
     val rules = Array(
-      Rule(ruleName, inputColumn, functions.min, s"${getColumnName(inputColumn)}_min",
-        boundaries, by: _*),
-      Rule(ruleName, inputColumn, functions.max, s"${getColumnName(inputColumn)}_max",
-        boundaries, by: _*)
+      Rule(s"${ruleName}_min", min(inputColumn), boundaries),
+      Rule(s"${ruleName}_max", max(inputColumn), boundaries)
     )
     add(rules)
   }
 
+  /**
+   * add array of rules
+   * @param rules Array for Rules
+   * @return RuleSet
+   */
   def add(rules: Seq[Rule]): this.type = {
     rules.foreach(rule => _rules.append(rule))
     this
   }
 
+  /**
+   * Add a single rule
+   * @param rule single defined rule
+   * @return RuleSet
+   */
   def add(rule: Rule): this.type = {
     _rules.append(rule)
     this
   }
 
+  /**
+   * Merge two rule sets by adding one rule set to another
+   * @param ruleSet RuleSet to be added
+   * @return RuleSet
+   */
   def add(ruleSet: RuleSet): RuleSet = {
     new RuleSet().setDF(ruleSet.getDf)
-      .setIsGrouped(ruleSet.getGroupedFlag)
+      .setIsGrouped(ruleSet.isGrouped)
       .add(ruleSet.getRules)
   }
 
   /**
-   * Logic to actually test compliance with provided rules added through the builder
-   *
+   * Logic to test compliance with provided rules added through the builder
+   * TODO What else?
    * @return this but is marked private
    */
-  private def applyValidation: this.type = {
-
-    // Logic application
-    val rules = _rules.toArray
-    val actuals = rules.map(rule => rule.aggFunc(rule.inputColumn).cast("double").alias(rule.alias))
-
-    // Result after applying the logic
-    val results = if (_isGrouped) {
-      _df.asInstanceOf[RelationalGroupedDataset].agg(actuals.head, actuals.tail: _*).first()
-    } else {
-      _df.asInstanceOf[DataFrame].select(actuals: _*).first()
-    }
-
-
-    // Test to see if results are compliant with the rules
-    // Result is appended to the case class Result
-    rules.foreach(rule => {
-      val funcRaw = rule.aggFunc.apply(rule.inputColumn).toString()
-      val funcName = funcRaw.substring(0, funcRaw.indexOf("("))
-      val actVal = results.getDouble(results.fieldIndex(rule.alias))
-      rulesReport.append(Result(rule.ruleName, rule.alias, funcName, rule.boundaries,
-        actVal, actVal < rule.boundaries.upper && actVal > rule.boundaries.lower))
-    })
-    this
+  private def validateRules(): Unit = {
+    require(getRules.map(_.ruleName).distinct.length == getRules.map(_.ruleName).length,
+      s"Duplicate Rule Names: ${getRules.map(_.ruleName).diff(getRules.map(_.ruleName).distinct).mkString(", ")}")
   }
 
   /**
    * Call the action once all rules have been applied
+   * @param detailLevel -- For Future -- Perhaps faster way to just return true/false without
+   *                    processing everything and returning a report. For big data sets, perhaps run samples
+   *                    looking for invalids? Not sure how much faster and/or what the break-even would be
    * @return Tuple of Dataframe report and final boolean of whether all rules were passed
    */
-  def validate: (DataFrame, Boolean) = {
-    applyValidation
-    val reportDF = rulesReport.toDS.toDF
-    (reportDF,
-      reportDF.filter('passed === false).count > 0)
+  def validate(detailLevel: Int = 1): (DataFrame, Boolean) = {
+    validateRules()
+    Validator(this, detailLevel).validate
   }
 
 }
@@ -114,36 +144,48 @@ class RuleSet extends SparkSessionWrapper {
 object RuleSet {
 
   /**
-   * Accept either a regular DataFrame or a Grouped DataFrame as the base
+   * Accepts DataFrame - Rules can be calculated for grouped DFs or non-grouped but not at the same time.
    * Either append rule[s] at call or via builder pattern
    */
 
   def apply(df: DataFrame): RuleSet = {
-    new RuleSet().setDF(df).setIsGrouped(false)
+    new RuleSet().setDF(df)
   }
 
-  def apply(df: RelationalGroupedDataset): RuleSet = {
-    new RuleSet().setDF(df).setIsGrouped(true)
+  def apply(df: DataFrame, by: Array[String]): RuleSet = {
+    new RuleSet().setDF(df)
+      .setGroupByCols(by)
+  }
+
+  def apply(df: DataFrame, by: String): RuleSet = {
+    new RuleSet().setDF(df)
+      .setGroupByCols(Array(by))
+  }
+
+  def apply(df: DataFrame, rules: Seq[Rule], by: Seq[String] = Seq.empty[String]): RuleSet = {
+    new RuleSet().setDF(df)
+      .setGroupByCols(by)
+      .add(rules)
   }
 
   def apply(df: DataFrame, rules: Rule*): RuleSet = {
-    new RuleSet().setDF(df).setIsGrouped(false)
+    new RuleSet().setDF(df)
       .add(rules)
   }
 
-  def apply(df: RelationalGroupedDataset, rules: Rule*): RuleSet = {
-    new RuleSet().setDF(df).setIsGrouped(true)
-      .add(rules)
-  }
-
+  /**
+   * Generates two rules for each minmax definition one for the lower and one for the upper
+   * Only valid for Bounds rule types
+   * @param minMaxRuleDefs One or many minmax definitions as defined in Structures
+   *                       Defined as case class to ensure proper usage
+   * @return Array[Rule] that can be added to the RuleSet
+   */
   def generateMinMaxRules(minMaxRuleDefs: MinMaxRuleDef*): Array[Rule] = {
 
     minMaxRuleDefs.flatMap(ruleDef => {
       Seq(
-        Rule(ruleDef.ruleName, ruleDef.column, functions.min,
-          s"${getColumnName(ruleDef.column)}_min", ruleDef.bounds, ruleDef.by: _*),
-        Rule(ruleDef.ruleName, ruleDef.column, functions.max,
-          s"${getColumnName(ruleDef.column)}_min", ruleDef.bounds, ruleDef.by: _*)
+        Rule(s"${ruleDef.ruleName}_min", min(ruleDef.column), ruleDef.bounds),
+        Rule(s"${ruleDef.ruleName}_max", max(ruleDef.column), ruleDef.bounds)
       )
     }).toArray
   }
