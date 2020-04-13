@@ -135,6 +135,7 @@ and add it as soon as possible.
 
 Some ideas of great adds are:
 * Add a Python wrapper
+* Enable an external table to host the rules and have rules compiled from externally managed source (GREAT idea from Sri Tikkireddy)
 * Refactor Rule and/or Validator to implement an Abstract class or trait
     * There's a clear opportunity to abstract away some of the redundancy between rule types.
 * Implement a fast runner 
