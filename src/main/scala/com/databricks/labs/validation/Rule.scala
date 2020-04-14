@@ -20,7 +20,7 @@ class Rule {
   private var _validNumerics: Array[Double] = _
   private var _validStrings: Array[String] = _
   private var _dateTimeLogic: Column = _
-  private var _ruleType: String = _
+  private var _ruleType: RuleType.Value = _
   private var _isAgg: Boolean = _
 
   private def setRuleName(value: String): this.type = {
@@ -69,7 +69,7 @@ class Rule {
     this
   }
 
-  private def setRuleType(value: String): this.type = {
+  private def setRuleType(value: RuleType.Value): this.type = {
     _ruleType = value
     this
   }
@@ -99,7 +99,7 @@ class Rule {
 
   def dateTimeLogic: Column = _dateTimeLogic
 
-  def ruleType: String = _ruleType
+  def ruleType: RuleType.Value = _ruleType
 
   private[validation] def isAgg: Boolean = _isAgg
 
@@ -121,7 +121,7 @@ object Rule {
       .setRuleName(ruleName)
       .setColumn(column)
       .setBoundaries(boundaries)
-      .setRuleType("bounds")
+      .setRuleType(RuleType.ValidateBounds)
       .setIsAgg
   }
 
@@ -135,7 +135,7 @@ object Rule {
       .setRuleName(ruleName)
       .setColumn(column)
       .setValidNumerics(validNumerics)
-      .setRuleType("validNumerics")
+      .setRuleType(RuleType.ValidateNumerics)
       .setIsAgg
   }
 
@@ -149,7 +149,7 @@ object Rule {
       .setRuleName(ruleName)
       .setColumn(column)
       .setValidNumerics(validNumerics.map(_.toString.toDouble))
-      .setRuleType("validNumerics")
+      .setRuleType(RuleType.ValidateNumerics)
       .setIsAgg
   }
 
@@ -163,7 +163,7 @@ object Rule {
       .setRuleName(ruleName)
       .setColumn(column)
       .setValidNumerics(validNumerics.map(_.toString.toDouble))
-      .setRuleType("validNumerics")
+      .setRuleType(RuleType.ValidateNumerics)
       .setIsAgg
   }
 
@@ -177,7 +177,7 @@ object Rule {
       .setRuleName(ruleName)
       .setColumn(column)
       .setValidStrings(validStrings)
-      .setRuleType("validStrings")
+      .setRuleType(RuleType.ValidateStrings)
       .setIsAgg
   }
 

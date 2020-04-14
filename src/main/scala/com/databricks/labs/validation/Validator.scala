@@ -13,11 +13,11 @@ class Validator(ruleSet: RuleSet, detailLvl: Int) extends SparkSessionWrapper {
 
   import spark.implicits._
 
-  private val boundaryRules = ruleSet.getRules.filter(_.ruleType == "bounds")
-  private val categoricalRules = ruleSet.getRules.filter(rule => rule.ruleType == "validNumerics" ||
-    rule.ruleType == "validStrings")
-  private val dateTimeRules = ruleSet.getRules.filter(_.ruleType == "dateTime")
-  private val complexRules = ruleSet.getRules.filter(_.ruleType == "complex")
+  private val boundaryRules = ruleSet.getRules.filter(_.ruleType == RuleType.ValidateBounds)
+  private val categoricalRules = ruleSet.getRules.filter(rule => rule.ruleType == RuleType.ValidateNumerics ||
+    rule.ruleType == RuleType.ValidateStrings)
+  private val dateTimeRules = ruleSet.getRules.filter(_.ruleType == RuleType.ValidateDateTime)
+  private val complexRules = ruleSet.getRules.filter(_.ruleType == RuleType.ValidateComplex)
   private val byCols = ruleSet.getGroupBys map col
 
   /**
@@ -36,15 +36,15 @@ class Validator(ruleSet: RuleSet, detailLvl: Int) extends SparkSessionWrapper {
    */
   private def buildValidationsByType(rule: Rule): Column = {
     val nulls = mutable.Map[String, Column](
-      "bounds" -> lit(null).cast(ArrayType(DoubleType)).alias("bounds"),
-      "validNumerics" -> lit(null).cast(ArrayType(DoubleType)).alias("validNumerics"),
-      "validStrings" -> lit(null).cast(ArrayType(StringType)).alias("validStrings"),
-      "validDate" -> lit(null).cast(LongType).alias("validDate")
+      RuleType.ValidateBounds.toString -> lit(null).cast(ArrayType(DoubleType)).alias(RuleType.ValidateBounds.toString),
+      RuleType.ValidateNumerics.toString -> lit(null).cast(ArrayType(DoubleType)).alias(RuleType.ValidateNumerics.toString),
+      RuleType.ValidateStrings.toString -> lit(null).cast(ArrayType(StringType)).alias(RuleType.ValidateStrings.toString),
+      RuleType.ValidateDateTime.toString -> lit(null).cast(LongType).alias(RuleType.ValidateDateTime.toString)
     )
     rule.ruleType match {
-      case "bounds" => nulls("bounds") = array(lit(rule.boundaries.lower), lit(rule.boundaries.upper)).alias("bounds")
-      case "validNumerics" => nulls("validNumerics") = lit(rule.validNumerics).alias("validNumerics")
-      case "validStrings" => nulls("validStrings") = lit(rule.validStrings).alias("validStrings")
+      case RuleType.ValidateBounds => nulls(RuleType.ValidateBounds.toString) = array(lit(rule.boundaries.lower), lit(rule.boundaries.upper)).alias(RuleType.ValidateBounds.toString)
+      case RuleType.ValidateNumerics => nulls(RuleType.ValidateNumerics.toString) = lit(rule.validNumerics).alias(RuleType.ValidateNumerics.toString)
+      case RuleType.ValidateStrings => nulls(RuleType.ValidateStrings.toString) = lit(rule.validStrings).alias(RuleType.ValidateStrings.toString)
     }
     val validationsByType = nulls.toMap.values.toSeq
     struct(
@@ -61,7 +61,7 @@ class Validator(ruleSet: RuleSet, detailLvl: Int) extends SparkSessionWrapper {
   private def buildOutputStruct(rule: Rule, results: Seq[Column]): Column = {
     struct(
       lit(rule.ruleName).alias("Rule_Name"),
-      lit(rule.ruleType).alias("Rule_Type"),
+      lit(rule.ruleType.toString).alias("Rule_Type"),
       buildValidationsByType(rule),
       struct(results: _*).alias("Results")
     ).alias("Validation")
@@ -101,7 +101,7 @@ class Validator(ruleSet: RuleSet, detailLvl: Int) extends SparkSessionWrapper {
 
       // Results must have Invalid_Count & Failed
       rule.ruleType match {
-        case "bounds" =>
+        case RuleType.ValidateBounds =>
           val invalid = rule.inputColumn < rule.boundaries.lower || rule.inputColumn > rule.boundaries.upper
           val failed = when(
             col(rule.ruleName) < rule.boundaries.lower || col(rule.ruleName) > rule.boundaries.upper, true)
@@ -117,8 +117,8 @@ class Validator(ruleSet: RuleSet, detailLvl: Int) extends SparkSessionWrapper {
             Seq(col(rule.ruleName).cast(LongType).alias("Invalid_Count"), failed)
           }
           Selects(buildOutputStruct(rule, results), first)
-        case x if x == "validNumerics" || x == "validStrings" =>
-          val invalid = if (x == "validNumerics") {
+        case x if x == RuleType.ValidateNumerics || x == RuleType.ValidateStrings =>
+          val invalid = if (x == RuleType.ValidateNumerics) {
             expr(s"size(array_except(${rule.ruleName}," +
               s"array(${rule.validNumerics.mkString("D,")}D)))")
           } else {
@@ -130,8 +130,8 @@ class Validator(ruleSet: RuleSet, detailLvl: Int) extends SparkSessionWrapper {
           val first = collect_set(rule.inputColumn).alias(rule.ruleName)
           val results = Seq(invalid.cast(LongType).alias("Invalid_Count"), failed)
           Selects(buildOutputStruct(rule, results), first)
-        case "validDate" => ??? // TODO
-        case "complex" => ??? // TODO
+        case RuleType.ValidateDateTime => ??? // TODO
+        case RuleType.ValidateComplex => ??? // TODO
       }
     })
   }
