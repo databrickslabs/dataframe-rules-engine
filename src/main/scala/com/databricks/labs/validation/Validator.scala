@@ -103,9 +103,13 @@ class Validator(ruleSet: RuleSet, detailLvl: Int) extends SparkSessionWrapper {
       rule.ruleType match {
         case "bounds" =>
           val invalid = rule.inputColumn < rule.boundaries.lower || rule.inputColumn > rule.boundaries.upper
-          val failed = when(
-            col(rule.ruleName) < rule.boundaries.lower || col(rule.ruleName) > rule.boundaries.upper, true)
-            .otherwise(false).alias("Failed")
+          val failed = if (rule.isAgg) {
+            when(
+              col(rule.ruleName) < rule.boundaries.lower || col(rule.ruleName) > rule.boundaries.upper, true)
+              .otherwise(false).alias("Failed")
+          } else{
+            when(col(rule.ruleName) > 0,true).otherwise(false).alias("Failed")
+          }
           val first = if (!rule.isAgg) { // Not Agg
             sum(when(invalid, 1).otherwise(0)).alias(rule.ruleName)
           } else { // Is Agg
