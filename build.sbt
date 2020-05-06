@@ -2,7 +2,7 @@ name := "dataframe-rules-engine"
 
 organization := "com.databricks"
 
-version := "0.1"
+version := "0.1.1"
 
 scalaVersion := "2.11.12"
 scalacOptions ++= Seq("-Xmax-classfile-name", "78")
@@ -31,7 +31,7 @@ testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
 
 
 lazy val commonSettings = Seq(
-  version := "0.1",
+  version := "0.1.1",
   organization := "com.databricks",
   scalaVersion := "2.11.12"
 )
