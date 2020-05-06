@@ -1,9 +1,9 @@
 package com.databricks.labs.validation
 
-import com.databricks.labs.validation.utils.SparkSessionWrapper
 import com.databricks.labs.validation.utils.Structures.{Bounds, MinMaxRuleDef}
-import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.{col, min}
+
+case class ValidationValue(validDateTime: java.lang.Long, validNumerics: Array[Double], bounds: Array[Double], validStrings: Array[String])
 
 class ValidatorTestSuite extends org.scalatest.FunSuite with SparkSessionFixture {
 
@@ -11,6 +11,19 @@ class ValidatorTestSuite extends org.scalatest.FunSuite with SparkSessionFixture
   spark.sparkContext.setLogLevel("ERROR")
 
   test("The input dataframe should have no rule failures on MinMaxRule") {
+    val expectedDF = Seq(
+      ("MinMax_Cost_Generated_max","bounds",ValidationValue(null,null,Array(0.0, 12.0),null),0,false),
+      ("MinMax_Cost_Generated_min","bounds",ValidationValue(null,null,Array(0.0, 12.0),null),0,false),
+      ("MinMax_Cost_manual_max","bounds",ValidationValue(null,null,Array(0.0, 12.0),null),0,false),
+      ("MinMax_Cost_manual_min","bounds",ValidationValue(null,null,Array(0.0, 12.0),null),0,false),
+      ("MinMax_Cost_max","bounds",ValidationValue(null,null,Array(0.0, 12.0),null),0,false),
+      ("MinMax_Cost_min","bounds",ValidationValue(null,null,Array(0.0, 12.0),null),0,false),
+      ("MinMax_Scan_Price_max","bounds",ValidationValue(null,null,Array(0.0, 29.99),null),0,false),
+      ("MinMax_Scan_Price_min","bounds",ValidationValue(null,null,Array(0.0, 29.99),null),0,false),
+      ("MinMax_Sku_Price_max","bounds",ValidationValue(null,null,Array(0.0, 29.99),null),0,false),
+      ("MinMax_Sku_Price_min","bounds",ValidationValue(null,null,Array(0.0, 29.99),null),0,false)
+      ).toDF("Rule_Name","Rule_Type","Validation_Values","Invalid_Count","Failed")
+    val data = Seq()
     //  2 per rule so 2 MinMax_Sku_Price + 2 MinMax_Scan_Price + 2 MinMax_Cost + 2 MinMax_Cost_Generated
     // + 2 MinMax_Cost_manual = 10 rules
     val testDF = Seq(
@@ -32,9 +45,73 @@ class ValidatorTestSuite extends org.scalatest.FunSuite with SparkSessionFixture
     someRuleSet.addMinMaxRules("MinMax_Cost_manual", col("cost"), Bounds(0.0,12.0))
     someRuleSet.add(rulesArray)
     val (rulesReport, passed) = someRuleSet.validate()
-    rulesReport.show()
+    assert(rulesReport.except(expectedDF).count() == 0)
     assert(passed)
     assert(rulesReport.count() == 10)
+  }
+
+  test("The input rule should have 3 invalid count for MinMax_Scan_Price_Minus_Retail_Price_min for failing complex type.") {
+    val expectedDF = Seq(
+      ("MinMax_Retail_Price_Minus_Scan_Price_max","bounds",ValidationValue(null,null,Array(0.0, 29.99),null),0,false),
+      ("MinMax_Retail_Price_Minus_Scan_Price_min","bounds",ValidationValue(null,null,Array(0.0, 29.99),null),3,true),
+      ("MinMax_Scan_Price_Minus_Retail_Price_max","bounds",ValidationValue(null,null,Array(0.0, 29.99),null),0,false),
+      ("MinMax_Scan_Price_Minus_Retail_Price_min","bounds",ValidationValue(null,null,Array(0.0, 29.99),null),0,false)
+    ).toDF("Rule_Name","Rule_Type","Validation_Values","Invalid_Count","Failed")
+    val data = Seq()
+    //  2 per rule so 2 MinMax_Sku_Price + 2 MinMax_Scan_Price + 2 MinMax_Cost + 2 MinMax_Cost_Generated
+    // + 2 MinMax_Cost_manual = 10 rules
+    val testDF = Seq(
+      (1, 2, 3),
+      (4, 5, 6),
+      (7, 8, 9)
+    ).toDF("retail_price", "scan_price", "cost")
+    val minMaxPriceDefs = Array(
+      MinMaxRuleDef("MinMax_Retail_Price_Minus_Scan_Price", col("retail_price")-col("scan_price"), Bounds(0.0, 29.99)),
+      MinMaxRuleDef("MinMax_Scan_Price_Minus_Retail_Price", col("scan_price")-col("retail_price"), Bounds(0.0, 29.99))
+    )
+
+    testDF
+      .withColumn("Retail_Price_Minus_Scan_Price", col("retail_price")-col("scan_price"))
+      .withColumn("Scan_Price_Minus_Retail_Price", col("scan_price")-col("retail_price"))
+      .show()
+
+    // Generate the array of Rules from the minmax generator
+
+    val someRuleSet = RuleSet(testDF)
+    someRuleSet.addMinMaxRules(minMaxPriceDefs: _*)
+    val (rulesReport, passed) = someRuleSet.validate()
+    rulesReport.show(false)
+    assert(rulesReport.except(expectedDF).count() == 0, "Expected df is not equal to the returned rules report.")
+    assert(!passed)
+    assert(rulesReport.count() == 4)
+  }
+
+  test("The input rule should have 3 invalid count for failing aggregate type.") {
+    val expectedDF = Seq(
+      ("MinMax_Min_Retail_Price","bounds",ValidationValue(null,null,Array(0.0, 29.99),null),0,false),
+      ("MinMax_Min_Scan_Price","bounds",ValidationValue(null,null,Array(3.0, 29.99),null),1,true)
+    ).toDF("Rule_Name","Rule_Type","Validation_Values","Invalid_Count","Failed")
+    val data = Seq()
+    //  2 per rule so 2 MinMax_Sku_Price + 2 MinMax_Scan_Price + 2 MinMax_Cost + 2 MinMax_Cost_Generated
+    // + 2 MinMax_Cost_manual = 10 rules
+    val testDF = Seq(
+      (1, 2, 3),
+      (4, 5, 6),
+      (7, 8, 9)
+    ).toDF("retail_price", "scan_price", "cost")
+    val minMaxPriceDefs = Seq(
+      Rule("MinMax_Min_Retail_Price", min("retail_price"), Bounds(0.0, 29.99)),
+      Rule("MinMax_Min_Scan_Price", min("scan_price"), Bounds(3.0, 29.99))
+    )
+
+
+    // Generate the array of Rules from the minmax generator
+    val someRuleSet = RuleSet(testDF)
+    someRuleSet.add(minMaxPriceDefs)
+    val (rulesReport, passed) = someRuleSet.validate()
+    assert(rulesReport.except(expectedDF).count() == 0, "Expected df is not equal to the returned rules report.")
+    assert(!passed)
+    assert(rulesReport.count() == 2)
   }
 
   test("The input dataframe should have exactly 1 rule failure on MinMaxRule") {
