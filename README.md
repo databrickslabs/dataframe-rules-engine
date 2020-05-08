@@ -182,3 +182,21 @@ cd Downloads
 git pull repo
 sbt clean package
 ```
+
+## Running tests
+To run tests on the project: <br>
+```
+sbt test
+```
+
+Make sure that your JAVA_HOME is setup for sbt to run the tests properly. You will need JDK 8 as Spark does
+not support newer versions of the JDK.
+
+## Test reports for test coverage
+To get test coverage report for the project: <br>
+```
+sbt jacoco
+```
+
+The test reports can be found in target/scala-<version>/jacoco/
+

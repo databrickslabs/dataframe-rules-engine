@@ -9,4 +9,4 @@ project/project/
 project/target/
 *.DS_Store
 /target/
-/project/
+/project/build.properties
