@@ -102,18 +102,32 @@ class Validator(ruleSet: RuleSet, detailLvl: Int) extends SparkSessionWrapper {
       // Results must have Invalid_Count & Failed
       rule.ruleType match {
         case RuleType.ValidateBounds =>
+          // Rule evaluation for NON-AGG RULES ONLY
           val invalid = rule.inputColumn < rule.boundaries.lower || rule.inputColumn > rule.boundaries.upper
+          // This is the first select it must come before subsequent selects as it aliases the original column name
+          // to that of the rule name. ADDITIONALLY, this evaluates the boundary rule WHEN the input col is not an Agg.
+          // This can be confusing because for Non-agg columns it renames the column to the rule_name AND returns a 0
+          // or 1 (not the original value)
+          // IF the rule is NOT an AGG then the column is simply aliased to the rule name and no evaluation takes place
+          // here.
+          val first = if (!rule.isAgg) { // Not Agg
+            sum(when(invalid, 1).otherwise(0)).alias(rule.ruleName)
+          } else { // Is Agg
+            rule.inputColumn.alias(rule.ruleName)
+          }
+          // WHEN RULE IS AGG -- this is where the evaluation happens. The input column was renamed to the name of the
+          // rule in the required previous select.
+          // IMPORTANT: REMEMBER - that agg expressions evaluate to a single output value thus the invalid_count in
+          // cases where agg is used cannot be > 1 since the sum of a single value cannot exceed 1.
+
+          // WHEN RULE NOT AGG - determine if the result of "first" select (0 or 1) is > 0, if it is, the rule has
+          // failed since the sum(1 or more 1s) means that 1 or more rows have failed thus the rule has failed
           val failed = if (rule.isAgg) {
             when(
               col(rule.ruleName) < rule.boundaries.lower || col(rule.ruleName) > rule.boundaries.upper, true)
               .otherwise(false).alias("Failed")
           } else{
             when(col(rule.ruleName) > 0,true).otherwise(false).alias("Failed")
-          }
-          val first = if (!rule.isAgg) { // Not Agg
-            sum(when(invalid, 1).otherwise(0)).alias(rule.ruleName)
-          } else { // Is Agg
-            rule.inputColumn.alias(rule.ruleName)
           }
           val results = if (rule.isAgg) {
             Seq(when(failed, 1).otherwise(0).cast(LongType).alias("Invalid_Count"), failed)

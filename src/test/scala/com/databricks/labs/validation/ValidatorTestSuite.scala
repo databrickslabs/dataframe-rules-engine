@@ -50,10 +50,10 @@ class ValidatorTestSuite extends org.scalatest.FunSuite with SparkSessionFixture
     assert(rulesReport.count() == 10)
   }
 
-  test("The input rule should have 3 invalid count for MinMax_Scan_Price_Minus_Retail_Price_min for failing complex type.") {
+  test("The input rule should have 1 invalid count for MinMax_Scan_Price_Minus_Retail_Price_min and max for failing complex type.") {
     val expectedDF = Seq(
-      ("MinMax_Retail_Price_Minus_Scan_Price_max","bounds",ValidationValue(null,null,Array(0.0, 29.99),null),0,false),
-      ("MinMax_Retail_Price_Minus_Scan_Price_min","bounds",ValidationValue(null,null,Array(0.0, 29.99),null),3,true),
+      ("MinMax_Retail_Price_Minus_Scan_Price_max","bounds",ValidationValue(null,null,Array(0.0, 29.99),null),1,true),
+      ("MinMax_Retail_Price_Minus_Scan_Price_min","bounds",ValidationValue(null,null,Array(0.0, 29.99),null),1,true),
       ("MinMax_Scan_Price_Minus_Retail_Price_max","bounds",ValidationValue(null,null,Array(0.0, 29.99),null),0,false),
       ("MinMax_Scan_Price_Minus_Retail_Price_min","bounds",ValidationValue(null,null,Array(0.0, 29.99),null),0,false)
     ).toDF("Rule_Name","Rule_Type","Validation_Values","Invalid_Count","Failed")
