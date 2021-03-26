@@ -2,10 +2,11 @@ package com.databricks.labs.validation
 
 import com.databricks.labs.validation.utils.Structures.{Bounds, MinMaxRuleDef}
 import org.apache.spark.sql.functions.{col, min}
+import org.scalatest.funsuite.AnyFunSuite
 
 case class ValidationValue(validDateTime: java.lang.Long, validNumerics: Array[Double], bounds: Array[Double], validStrings: Array[String])
 
-class ValidatorTestSuite extends org.scalatest.FunSuite with SparkSessionFixture {
+class ValidatorTestSuite extends AnyFunSuite with SparkSessionFixture {
 
   import spark.implicits._
   spark.sparkContext.setLogLevel("ERROR")
