@@ -4,13 +4,13 @@ organization := "com.databricks"
 
 version := "0.1.1"
 
-scalaVersion := "2.11.12"
+scalaVersion := "2.12.12"
 scalacOptions ++= Seq("-Xmax-classfile-name", "78")
 
-libraryDependencies += "org.apache.spark" %% "spark-core" % "2.4.0"
-libraryDependencies += "org.apache.spark" %% "spark-sql" % "2.4.0"
-libraryDependencies += "org.scalactic" %% "scalactic" % "3.1.1"
-libraryDependencies += "org.scalatest" %% "scalatest" % "3.1.1" % "test"
+libraryDependencies += "org.apache.spark" %% "spark-core" % "3.0.1" % Provided
+libraryDependencies += "org.apache.spark" %% "spark-sql" % "3.0.1" % Provided
+libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.6"
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.6" % Test
 
 lazy val excludes = jacocoExcludes in Test := Seq()
 
@@ -33,5 +33,5 @@ testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
 lazy val commonSettings = Seq(
   version := "0.1.1",
   organization := "com.databricks",
-  scalaVersion := "2.11.12"
+  scalaVersion := "2.12.12"
 )
