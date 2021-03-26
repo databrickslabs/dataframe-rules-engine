@@ -1,16 +1,30 @@
 name := "dataframe-rules-engine"
 
-organization := "com.databricks"
+organization := "com.databricks.labs"
 
-version := "0.1.1"
+version := "0.1.2"
 
-scalaVersion := "2.11.12"
+scalaVersion := "2.12.12"
 scalacOptions ++= Seq("-Xmax-classfile-name", "78")
 
-libraryDependencies += "org.apache.spark" %% "spark-core" % "2.4.0"
-libraryDependencies += "org.apache.spark" %% "spark-sql" % "2.4.0"
-libraryDependencies += "org.scalactic" %% "scalactic" % "3.1.1"
-libraryDependencies += "org.scalatest" %% "scalatest" % "3.1.1" % "test"
+// groupId, SCM, license information
+homepage := Some(url("https://github.com/databrickslabs/dataframe-rules-engine"))
+scmInfo := Some(ScmInfo(url("https://github.com/databrickslabs/dataframe-rules-engine"), "git@github.com:databrickslabs/dataframe-rules-engine.git"))
+developers := List(Developer("geeksheikh", "Daniel Tomes", "daniel@databricks.com", url("https://github.com/GeekSheikh")))
+licenses += ("Databricks", url("https://github.com/databrickslabs/dataframe-rules-engine/blob/master/LICENSE"))
+publishMavenStyle := true
+
+publishTo := Some(
+  if (version.value.endsWith("SNAPSHOT"))
+    Opts.resolver.sonatypeSnapshots
+  else
+    Opts.resolver.sonatypeStaging
+)
+
+libraryDependencies += "org.apache.spark" %% "spark-core" % "3.0.1" % Provided
+libraryDependencies += "org.apache.spark" %% "spark-sql" % "3.0.1" % Provided
+libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.6"
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.6" % Test
 
 lazy val excludes = jacocoExcludes in Test := Seq()
 
@@ -31,7 +45,7 @@ testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
 
 
 lazy val commonSettings = Seq(
-  version := "0.1.1",
-  organization := "com.databricks",
-  scalaVersion := "2.11.12"
+  version := "0.1.2",
+  organization := "com.databricks.labs",
+  scalaVersion := "2.12.12"
 )
