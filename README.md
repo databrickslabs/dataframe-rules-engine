@@ -19,10 +19,22 @@ move the data to production and/or in-line (coming soon).
 * Reference it in your imports
 
 ## Getting Started
+Add [the dependency](https://mvnrepository.com/artifact/com.databricks.labs/dataframe-rules-engine_2.12) to your build.sbt or pom.xml
+
+`libraryDependencies += "com.databricks.labs" %% "dataframe-rules-engine" % "0.1.2"`
+
+```
+<dependency>
+    <groupId>com.databricks.labs</groupId>
+    <artifactId>dataframe-rules-engine_2.12</artifactId>
+    <version>0.1.2</version>
+</dependency>
+```
+
 A list of usage examples is available in the `demo` folder of this repo in [html](demo/Rules_Engine_Examples.html) 
 and as a [Databricks Notebook DBC](demo/Rules_Engine_Examples.dbc).
 
-The process simple:
+The process is simple:
 * Define Rules
 * Build a RuleSet from your Dataframe using your Rules you built
 ```scala
