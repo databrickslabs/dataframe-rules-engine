@@ -2,9 +2,9 @@ package com.databricks.labs.validation
 
 import com.databricks.labs.validation.utils.SparkSessionWrapper
 import com.databricks.labs.validation.utils.Structures.{Bounds, MinMaxRuleDef, ValidationResults}
-import org.apache.log4j.{Level, Logger}
-import org.apache.spark.sql.{Column, DataFrame}
+import org.apache.log4j.Logger
 import org.apache.spark.sql.functions.{max, min}
+import org.apache.spark.sql.{Column, DataFrame}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -16,8 +16,6 @@ import scala.collection.mutable.ArrayBuffer
 class RuleSet extends SparkSessionWrapper {
 
   private val logger: Logger = Logger.getLogger(this.getClass)
-
-  import spark.implicits._
 
   private var _df: DataFrame = _
   private var _isGrouped: Boolean = false
@@ -123,8 +121,17 @@ class RuleSet extends SparkSessionWrapper {
    * @return this but is marked private
    */
   private def validateRules(): Unit = {
+    val aggAndNonAggs = getRules.map(_.isAgg).distinct.length != 1
+    if (aggAndNonAggs && getGroupBys.isEmpty) setGroupByCols(getDf.columns)
+    val isGlobalGroupBy = getDf.columns.map(_.toLowerCase).sorted.sameElements(getGroupBys.map(_.toLowerCase).sorted)
+
     require(getRules.map(_.ruleName).distinct.length == getRules.map(_.ruleName).length,
       s"Duplicate Rule Names: ${getRules.map(_.ruleName).diff(getRules.map(_.ruleName).distinct).mkString(", ")}")
+    require(!aggAndNonAggs || (aggAndNonAggs && isGlobalGroupBy),
+      "\nRule set must contain:\nonly aggregates as input column\nOR\nonly non-aggregate functions\nOR\nmust be " +
+        "grouped by all column (i.e. '*').\nIf some rules must apply to both grouped and ungrouped DFs, create " +
+        "two rules sets and validators, one for grouped, one for not grouped."
+    )
   }
 
   /**
@@ -158,8 +165,10 @@ object RuleSet {
   }
 
   def apply(df: DataFrame, by: String): RuleSet = {
-    new RuleSet().setDF(df)
-      .setGroupByCols(Array(by))
+    if (by == "*") apply(df, df.columns) else {
+      new RuleSet().setDF(df)
+        .setGroupByCols(Array(by))
+    }
   }
 
   def apply(df: DataFrame, rules: Seq[Rule], by: Seq[String] = Seq.empty[String]): RuleSet = {

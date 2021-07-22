@@ -22,6 +22,6 @@ object Structures {
 
   case class MinMaxRuleDef(ruleName: String, column: Column, bounds: Bounds, by: Column*)
 
-  case class ValidationResults(report: DataFrame, failures: Option[DataFrame], passed: Option[Boolean])
+  case class ValidationResults(completeReport: DataFrame, summaryReport: DataFrame)
 
 }

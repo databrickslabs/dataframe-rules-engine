@@ -26,6 +26,9 @@ libraryDependencies += "org.apache.spark" %% "spark-sql" % "3.0.1" % Provided
 libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.6"
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.6" % Test
 
+run in Compile := Defaults.runTask(fullClasspath in Compile, mainClass in (Compile, run), runner in (Compile, run)).evaluated
+runMain in Compile := Defaults.runMainTask(fullClasspath in Compile, runner in(Compile, run)).evaluated
+
 lazy val excludes = jacocoExcludes in Test := Seq()
 
 lazy val jacoco = jacocoReportSettings in test  :=JacocoReportSettings(
@@ -45,7 +48,7 @@ testOptions in Test += Tests.Argument(TestFrameworks.ScalaTest, "-oD")
 
 
 lazy val commonSettings = Seq(
-  version := "0.1.2",
+  version := "0.2.0",
   organization := "com.databricks.labs",
   scalaVersion := "2.12.12"
 )

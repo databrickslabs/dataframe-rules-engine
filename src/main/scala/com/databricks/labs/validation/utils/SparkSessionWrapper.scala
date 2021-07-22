@@ -2,6 +2,7 @@ package com.databricks.labs.validation.utils
 
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.SparkSession
+
 import scala.collection.JavaConverters._
 
 trait SparkSessionWrapper extends Serializable {

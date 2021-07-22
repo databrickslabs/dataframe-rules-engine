@@ -1,9 +1,10 @@
 package com.databricks.labs.validation
 
-import java.util.UUID
 import com.databricks.labs.validation.utils.Structures.Bounds
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.functions.lit
+
+import java.util.UUID
 
 /**
  * Definition of a rule
@@ -18,8 +19,8 @@ class Rule {
   private var _calculatedColumn: Column = _
   private var _validExpr: Column = lit(null)
   private var _boundaries: Bounds = _
-  private var _validNumerics: Array[Double] = _
-  private var _validStrings: Array[String] = _
+  private var _validNumerics: Column = _
+  private var _validStrings: Column = _
   private var _dateTimeLogic: Column = _
   private var _ruleType: RuleType.Value = _
   private var _isAgg: Boolean = _
@@ -61,12 +62,12 @@ class Rule {
   }
 
   private def setValidNumerics(value: Array[Double]): this.type = {
-    _validNumerics = value
+    _validNumerics = lit(value)
     this
   }
 
   private def setValidStrings(value: Array[String]): this.type = {
-    _validStrings = value
+    _validStrings = lit(value)
     this
   }
 
@@ -101,9 +102,9 @@ class Rule {
 
   def validExpr: Column = _validExpr
 
-  def validNumerics: Array[Double] = _validNumerics
+  def validNumerics: Column = _validNumerics
 
-  def validStrings: Array[String] = _validStrings
+  def validStrings: Column = _validStrings
 
   def dateTimeLogic: Column = _dateTimeLogic
 
