@@ -1,7 +1,7 @@
 package com.databricks.labs.validation
 
 import com.databricks.labs.validation.utils.SparkSessionWrapper
-import com.databricks.labs.validation.utils.Structures.{Bounds, MinMaxRuleDef}
+import com.databricks.labs.validation.utils.Structures.{Bounds, MinMaxRuleDef, ValidationResults}
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.sql.{Column, DataFrame}
 import org.apache.spark.sql.functions.{max, min}
@@ -134,7 +134,7 @@ class RuleSet extends SparkSessionWrapper {
    *                    looking for invalids? Not sure how much faster and/or what the break-even would be
    * @return Tuple of Dataframe report and final boolean of whether all rules were passed
    */
-  def validate(detailLevel: Int = 1): (DataFrame, Boolean) = {
+  def validate(detailLevel: Int = 1): ValidationResults = {
     validateRules()
     Validator(this, detailLevel).validate
   }
@@ -172,6 +172,11 @@ object RuleSet {
     new RuleSet().setDF(df)
       .add(rules)
   }
+
+//  def apply(df: StreamingData, ules: Rule*): RuleSet = {
+//    new RuleSet().setDF(df)
+//      .add(rules)
+//  }
 
   /**
    * Generates two rules for each minmax definition one for the lower and one for the upper

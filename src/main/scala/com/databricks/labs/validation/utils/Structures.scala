@@ -1,6 +1,6 @@
 package com.databricks.labs.validation.utils
 
-import org.apache.spark.sql.Column
+import org.apache.spark.sql.{Column, DataFrame}
 
 /**
  * Lookups is a handy way to identify categorical values
@@ -21,5 +21,7 @@ object Structures {
   case class Bounds(lower: Double = Double.NegativeInfinity, upper: Double = Double.PositiveInfinity)
 
   case class MinMaxRuleDef(ruleName: String, column: Column, bounds: Bounds, by: Column*)
+
+  case class ValidationResults(report: DataFrame, failures: Option[DataFrame], passed: Option[Boolean])
 
 }

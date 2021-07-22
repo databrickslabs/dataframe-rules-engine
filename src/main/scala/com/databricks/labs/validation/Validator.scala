@@ -1,12 +1,13 @@
 package com.databricks.labs.validation
 
 import com.databricks.labs.validation.utils.SparkSessionWrapper
+import com.databricks.labs.validation.utils.Structures.ValidationResults
+import org.apache.spark.sql.execution.datasources.v2.StreamingDataSourceV2Relation
 import org.apache.spark.sql.{Column, DataFrame}
-import org.apache.spark.sql.functions.{
-  array, col, collect_set,
-  explode, expr, lit, struct, sum, when
-}
+import org.apache.spark.sql.functions.{array, col, collect_set, explode, expr, lit, struct, sum, when}
+import org.apache.spark.sql.streaming.DataStreamReader
 import org.apache.spark.sql.types._
+
 import scala.collection.mutable
 
 class Validator(ruleSet: RuleSet, detailLvl: Int) extends SparkSessionWrapper {
@@ -167,7 +168,7 @@ class Validator(ruleSet: RuleSet, detailLvl: Int) extends SparkSessionWrapper {
    */
   private def validateComplexRules: Unit = ???
 
-  private[validation] def validate: (DataFrame, Boolean) = {
+  private[validation] def validate: ValidationResults = {
 
     //    val selects = buildBaseSelects(boundaryRules)
     val selects = buildBaseSelects(boundaryRules) ++ buildBaseSelects(categoricalRules)
@@ -184,8 +185,13 @@ class Validator(ruleSet: RuleSet, detailLvl: Int) extends SparkSessionWrapper {
     }
 
     val validationSummaryDF = simplifyReport(summaryDF)
-    val passed = validationSummaryDF.filter('Failed === true).count == 0
-    (validationSummaryDF, passed)
+
+    val passed: Option[Boolean] = if (!ruleSet.getDf.isStreaming) {
+      println("SOURCE IS NOT STREAMING")
+      Some(validationSummaryDF.filter('Failed === true).count == 0)
+    } else None
+    println("SOURCE IS STREAMING")
+    ValidationResults(validationSummaryDF, None, passed)
   }
 
 }
