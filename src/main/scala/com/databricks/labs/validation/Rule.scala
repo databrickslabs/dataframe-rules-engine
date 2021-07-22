@@ -1,9 +1,9 @@
 package com.databricks.labs.validation
 
 import java.util.UUID
-
 import com.databricks.labs.validation.utils.Structures.Bounds
 import org.apache.spark.sql.Column
+import org.apache.spark.sql.functions.lit
 
 /**
  * Definition of a rule
@@ -16,6 +16,7 @@ class Rule {
   private var _inputCol: Column = _
   private var _inputColName: String = _
   private var _calculatedColumn: Column = _
+  private var _validExpr: Column = lit(null)
   private var _boundaries: Bounds = _
   private var _validNumerics: Array[Double] = _
   private var _validStrings: Array[String] = _
@@ -51,6 +52,11 @@ class Rule {
 
   private def setBoundaries(value: Bounds): this.type = {
     _boundaries = value
+    this
+  }
+
+  private def setValidExpr(value: Column): this.type = {
+    _validExpr = value
     this
   }
 
@@ -93,6 +99,8 @@ class Rule {
 
   def boundaries: Bounds = _boundaries
 
+  def validExpr: Column = _validExpr
+
   def validNumerics: Array[Double] = _validNumerics
 
   def validStrings: Array[String] = _validStrings
@@ -122,6 +130,20 @@ object Rule {
       .setColumn(column)
       .setBoundaries(boundaries)
       .setRuleType(RuleType.ValidateBounds)
+      .setIsAgg
+  }
+
+  def apply(
+             ruleName: String,
+             column: Column,
+             validationExpr: Column
+           ): Rule = {
+
+    new Rule()
+      .setRuleName(ruleName)
+      .setColumn(column)
+      .setValidExpr(validationExpr)
+      .setRuleType(RuleType.ValidateExpr)
       .setIsAgg
   }
 

@@ -4,6 +4,7 @@ package com.databricks.labs.validation
  * Definition of the Rule Types as an Enumeration for better type matching
  */
 object RuleType extends Enumeration {
+  val ValidateExpr = Value("expr")
   val ValidateBounds = Value("bounds")
   val ValidateNumerics = Value("validNumerics")
   val ValidateStrings = Value("validStrings")
