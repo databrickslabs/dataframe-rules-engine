@@ -25,7 +25,7 @@ object Structures {
 
   case class ValidationResults(completeReport: DataFrame, summaryReport: DataFrame)
 
-  private class ValidationException(s: String) extends Exception(s) {}
+  private[validation] class ValidationException(s: String) extends Exception(s) {}
 
   private[validation] class InvalidRuleException(r: Rule, s: String) extends Exception(s) {
     val msg: String = s"RULE VALIDATION FAILED: ${r.toString}"

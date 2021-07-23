@@ -86,6 +86,9 @@ As of version 0.2 There are three primary rule types
 Rules' input columns can be composed of: 
 * simple column references `col("my_column_name")`
 * complex columns `col("Revenue") - col("Cost")`
+* implicit boolean evaluation `lit(true)`
+  * These rules only take a single input column and it must resolve to true or false. All records in which it resolves 
+  to true will be considered passed
 * aggregate columns `min("ColumnName")`
   * Do not mix aggregate input columns with non-aggregate input columns, instead create two Rule Sets
   * If the rules' input columns are a mixture of aggregates and non-aggregates and no groupBy columns are passed 
@@ -116,6 +119,16 @@ Rule("Retail_Price_GT0", col("retail_price"), Bounds(lower = 0.0))
 Rule("Retail_Price_Validation", col("retail_price"), Bounds(lower = 0.0))
 // min(retail_price) > 0.0 && min(retail_price) < 1000.0 within the group
 Rule("Retail_Price_Validation", col("retail_price"), Bounds(0.0, 1000.0))
+```
+
+### Implicit Boolean Rules
+These rules are the same as columnar expression based rules except they don't require the comparison against `lit(true)`. 
+A type validation is done on the column before validation begins to ensure that the resolved expression resolves to 
+a boolean type.
+```scala
+// Passes where result is true
+Rule("Require_version>=0.2", col("version") >= 0.2)
+Rule("Require_version>=0.2", col("myDFBooleanCol"))
 ```
 
 ### List of Rules

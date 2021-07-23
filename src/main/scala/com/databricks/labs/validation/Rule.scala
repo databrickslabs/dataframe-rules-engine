@@ -1,8 +1,9 @@
 package com.databricks.labs.validation
 
-import com.databricks.labs.validation.utils.Structures.Bounds
+import com.databricks.labs.validation.utils.Structures.{Bounds, ValidationException}
 import org.apache.spark.sql.Column
-import org.apache.spark.sql.functions.{col, lit, array}
+import org.apache.spark.sql.functions.{array, lit}
+import org.apache.spark.sql.types.BooleanType
 
 import java.util.UUID
 
@@ -19,6 +20,7 @@ class Rule(
   private var _validExpr: Column = lit(null)
   private var _validNumerics: Column = array(lit(null).cast("double"))
   private var _validStrings: Column = array(lit(null).cast("string"))
+  private var _implicitBoolean: Boolean = false
   val inputColumnName: String = inputColumn.expr.toString().replace("'", "")
 
   override def toString: String = {
@@ -31,6 +33,7 @@ class Rule(
        |Boundaries: ${boundaries.lower} - ${boundaries.upper}
        |Valid Numerics: ${validNumerics.expr.toString()}
        |Valid Strings: ${validStrings.expr.toString()}
+       |Implicit Bool: ${_implicitBoolean}
        |""".stripMargin
   }
 
@@ -55,6 +58,11 @@ class Rule(
     this
   }
 
+  private def setImplicitBool(value: Boolean): this.type = {
+    _implicitBoolean = value
+    this
+  }
+
   def boundaries: Bounds = _boundaries
 
   def validNumerics: Column = _validNumerics
@@ -62,6 +70,8 @@ class Rule(
   def validStrings: Column = _validStrings
 
   def validExpr: Column = _validExpr
+
+  def isImplicitBool: Boolean = _implicitBoolean
 
   def isAgg: Boolean = {
     inputColumn.expr.prettyName == "aggregateexpression" ||
@@ -84,6 +94,14 @@ object Rule {
 
     new Rule(ruleName, column, RuleType.ValidateBounds)
       .setBoundaries(boundaries)
+  }
+
+  def apply(
+             ruleName: String,
+             column: Column
+           ): Rule = {
+      apply(ruleName, column, lit(true))
+        .setImplicitBool(true)
   }
 
   def apply(
