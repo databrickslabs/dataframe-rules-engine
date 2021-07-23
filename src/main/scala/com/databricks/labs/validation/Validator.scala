@@ -22,31 +22,31 @@ class Validator(ruleSet: RuleSet, detailLvl: Int) extends SparkSessionWrapper {
         case RuleType.ValidateBounds =>
           struct(
             lit(rule.ruleName).alias("ruleName"),
-            (rule.inputColumn < rule.boundaries.lower || rule.inputColumn > rule.boundaries.upper)
+            (rule.inputColumn > rule.boundaries.lower && rule.inputColumn < rule.boundaries.upper)
               .alias("passed"),
-            array(lit(rule.boundaries.lower), lit(rule.boundaries.upper)).alias("permitted"),
-            rule.inputColumn.alias("actual")
+            array(lit(rule.boundaries.lower), lit(rule.boundaries.upper)).cast("string").alias("permitted"),
+            rule.inputColumn.cast("string").alias("actual")
           ).alias(rule.ruleName)
         case RuleType.ValidateNumerics =>
           struct(
             lit(rule.ruleName).alias("ruleName"),
             array_contains(rule.validNumerics, rule.inputColumn).alias("passed"),
-            rule.validNumerics.alias("permitted"),
-            rule.inputColumn.alias("actual")
+            rule.validNumerics.cast("string").alias("permitted"),
+            rule.inputColumn.cast("string").alias("actual")
           ).alias(rule.ruleName)
         case RuleType.ValidateStrings =>
           struct(
             lit(rule.ruleName).alias("ruleName"),
             array_contains(rule.validStrings, rule.inputColumn).alias("passed"),
-            rule.validStrings.alias("permitted"),
-            rule.inputColumn.alias("actual")
+            rule.validStrings.cast("string").alias("permitted"),
+            rule.inputColumn.cast("string").alias("actual")
           ).alias(rule.ruleName)
         case RuleType.ValidateExpr =>
           struct(
             lit(rule.ruleName).alias("ruleName"),
             (rule.inputColumn === rule.validExpr).alias("passed"),
-            rule.validExpr.alias("permitted"),
-            rule.inputColumn.alias("actual")
+            lit(rule.inputColumnName).alias("permitted"),
+            rule.inputColumn.cast("string").alias("actual")
           ).alias(rule.ruleName)
       }
     })

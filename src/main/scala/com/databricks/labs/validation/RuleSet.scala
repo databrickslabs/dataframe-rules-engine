@@ -1,9 +1,10 @@
 package com.databricks.labs.validation
 
 import com.databricks.labs.validation.utils.SparkSessionWrapper
-import com.databricks.labs.validation.utils.Structures.{Bounds, MinMaxRuleDef, ValidationResults}
+import com.databricks.labs.validation.utils.Structures.{Bounds, InvalidRuleException, MinMaxRuleDef, ValidationResults}
 import org.apache.log4j.Logger
 import org.apache.spark.sql.functions.{max, min}
+import org.apache.spark.sql.types.BooleanType
 import org.apache.spark.sql.{Column, DataFrame}
 
 import scala.collection.mutable.ArrayBuffer
@@ -122,7 +123,10 @@ class RuleSet extends SparkSessionWrapper {
    */
   private def validateRules(): Unit = {
     val aggAndNonAggs = getRules.map(_.isAgg).distinct.length != 1
+    // if a mixture of aggs and non-aggs -- group by *
     if (aggAndNonAggs && getGroupBys.isEmpty) setGroupByCols(getDf.columns)
+    // if all are aggs but no group by -- group by *
+    if (getRules.forall(_.isAgg) && getGroupBys.isEmpty) setGroupByCols(getDf.columns)
     val isGlobalGroupBy = getDf.columns.map(_.toLowerCase).sorted.sameElements(getGroupBys.map(_.toLowerCase).sorted)
 
     require(getRules.map(_.ruleName).distinct.length == getRules.map(_.ruleName).length,
@@ -132,6 +136,12 @@ class RuleSet extends SparkSessionWrapper {
         "grouped by all column (i.e. '*').\nIf some rules must apply to both grouped and ungrouped DFs, create " +
         "two rules sets and validators, one for grouped, one for not grouped."
     )
+//    getRules.filter(_.ruleType == RuleType.ValidateExpr).foreach(r => {
+//      val dt = r.inputColumn.expr.dataType
+//      val dtString = r.inputColumn.expr.dataType.typeName
+//      if (dt != BooleanType) throw new InvalidRuleException(r, "Expression based rules must evaluate to true/false. " +
+//        s"Rule evaluates to $dtString not boolean.")
+//    })
   }
 
   /**
@@ -181,11 +191,6 @@ object RuleSet {
     new RuleSet().setDF(df)
       .add(rules)
   }
-
-//  def apply(df: StreamingData, ules: Rule*): RuleSet = {
-//    new RuleSet().setDF(df)
-//      .add(rules)
-//  }
 
   /**
    * Generates two rules for each minmax definition one for the lower and one for the upper
