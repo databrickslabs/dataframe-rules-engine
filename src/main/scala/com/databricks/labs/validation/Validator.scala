@@ -14,6 +14,7 @@ class Validator(ruleSet: RuleSet, detailLvl: Int) extends SparkSessionWrapper {
     val onlyFailedRecords = expr(s"""filter($rulesResultsArray, results -> !results.passed)""")
     df.withColumn("failed_rules", onlyFailedRecords)
       .drop(ruleSet.getRules.map(_.ruleName): _*)
+      .filter(size(col("failed_rules")) > 0)
   }
 
   private def evaluatedRules(rules: Array[Rule]): Array[Column] = {
