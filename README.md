@@ -21,13 +21,13 @@ move the data to production and/or in-line (coming soon).
 ## Getting Started
 Add [the dependency](https://mvnrepository.com/artifact/com.databricks.labs/dataframe-rules-engine_2.12) to your build.sbt or pom.xml
 
-`libraryDependencies += "com.databricks.labs" %% "dataframe-rules-engine" % "0.1.2"`
+`libraryDependencies += "com.databricks.labs" %% "dataframe-rules-engine" % "0.2.0"`
 
 ```
 <dependency>
     <groupId>com.databricks.labs</groupId>
     <artifactId>dataframe-rules-engine_2.12</artifactId>
-    <version>0.1.2</version>
+    <version>0.2.0</version>
 </dependency>
 ```
 
@@ -42,38 +42,96 @@ import com.databricks.labs.validation.utils.Structures._
 import com.databricks.labs.validation._
 ```
 
-As of version 0.1 There are three primary rule types
-* Boundary Rules
-* Categorical Rules (Strings and Numerical)
-* Date Rules (in progress)
+## Streaming Update
+As of version 0.2 streaming dataframes are fully supported
 
-Rules can be composed of: 
+## Quickstart
+
+
+```scala
+val myRules = ??? // Definition of my base rules
+val myAggRules = ??? // Definition of my agg rules
+val validationResults = RuleSet(df)
+  .add(myRules)
+  .validate()
+
+// or for validation executed at a grouped level
+val validationResults = RuleSet(df, by = "myGroup")
+        .add(myAggRules)
+        .validate()
+
+// grouping across multiple columns
+val validationResults = RuleSet(df, by = Array("myGroupA", "myGroupB"))
+        .add(myAggRules)
+        .validate()
+```
+
+## Rules
+
+As of version 0.2 There are three primary rule types
+* Boundary Rules
+  * Rules that fail if the input column is outside of the specified boundaries
+  * Boundary Rules are **EXCLUSIVE** on both sides meaning Bounds(0.0, 10.0) will fail all values between and 
+  including 0.0 and 10.0
+  * Boundary rules are created when the validation is of type `Bounds()`.
+    * The default Bounds() are `Bounds(lower: Double = Double.NegativeInfinity, upper: Double = Double.PositiveInfinity)`;
+    therefore, if a lower or an upper is not specified, any value will pass
+  * Group Boundaries often come in pairs, to minimize the amount of rules that must be manually created, helper logic 
+  was created to define [MinMax Rules](#minmax-rules)
+* Categorical Rules (Strings and Numerical)
+  * Rules that fail if the result of the input column is not in a list of values
+* Expression Rules
+  * Rules that fail if the input column != defined expression 
+
+Rules' input columns can be composed of: 
 * simple column references `col("my_column_name")`
 * complex columns `col("Revenue") - col("Cost")`
 * aggregate columns `min("ColumnName")`
+  * Do not mix aggregate input columns with non-aggregate input columns, instead create two Rule Sets
+  * If the rules' input columns are a mixture of aggregates and non-aggregates and no groupBy columns are passed 
+  into the RuleSet the dataframe will be grouped by all df columns
 
 Rules can be applied to simple DataFrames or grouped Dataframes. To use a grouped dataframe simply pass 
 your dataframe into the RuleSet and pass one or more columns in as `by` columns. This will apply the rule
-at the group level which can be helpful at times.
+at the group level which can be helpful at times. Any input column expressions passed into a RuleSet must be able 
+to be evaluated inside of the `.agg()` of a groupedDataframe
 
 ### Simple Rule
-`val validateRetailPrice = Rule("Retail_Price_Validation", col("retail_price"), Bounds(0.0, 6.99))`
+```scala
+Rule("Require_specific_version", col("version"), lit(0.2))
+Rule("Require_version>=0.2", col("version") >= 0.2, lit(true))
+```
+
+### Simple Boundary Rule
+**Non-grouped RuleSet** - Passes when the retail_price in a record is exclusive between the Bounds
+```scala
+// Passes when retail_price > 0.0 AND retail_price < 6.99
+Rule("Retail_Price_Validation", col("retail_price"), Bounds(0.0, 6.99))
+// Passes when retail_price > 0.0
+Rule("Retail_Price_GT0", col("retail_price"), Bounds(lower = 0.0))
+```
+**Grouped RuleSet** - Passes when the minimum value in the group is within (exclusive) the boundary
+```scala
+// max(retail_price) > 0.0
+Rule("Retail_Price_Validation", col("retail_price"), Bounds(lower = 0.0))
+// min(retail_price) > 0.0 && min(retail_price) < 1000.0 within the group
+Rule("Retail_Price_Validation", col("retail_price"), Bounds(0.0, 1000.0))
+```
 
 ### List of Rules
-NOTE: While validations can be performed on aggregate cols (whether the DF is grouped or not) aggregate columns
-only return a single value - as such the failed count will be set to 1 for failures so for aggregate columns
-the `Invalid_Count` is rendered somewhat useless. Better granularity can be seen in the report when not using 
-aggregates.
+A list of rules can be created as an Array and passed into the RuleSet to simplify Rule management
 ```scala
 val specializedRules = Array(
   // Example of aggregate column
   Rule("Reasonable_sku_counts", count(col("sku")), Bounds(lower = 20.0, upper = 200.0)),
-  // Example of calculated column from optimized UDF
+  // Example of calculated column from catalyst UDF def getDiscountPercentage(retailPrice: Column, scanPrice: Column): Column = ???
   Rule("Max_allowed_discount",
     max(getDiscountPercentage(col("retail_price"), col("scan_price"))),
     Bounds(upper = 90.0)),
   // Example distinct values rule
   Rule("Unique_Skus", countDistinct("sku"), Bounds(upper = 1.0))
+          
+  RuleSet(df, by = "store").add(specializedRules)
 )
 ```
 
@@ -81,7 +139,7 @@ val specializedRules = Array(
 It's very common to build rules to validate min and max allowable values so there's a helper function
 to speed up this process. It really only makes sense to use minmax when specifying both an upper and a lower bound
 in the Bounds object. Using this method in the example below will only require three lines of code instead of the 6
-if each rule was built manually
+if each rule were built manually
 ```scala
 val minMaxPriceDefs = Array(
   MinMaxRuleDef("MinMax_Sku_Price", col("retail_price"), Bounds(0.0, 29.99)),
@@ -102,11 +160,13 @@ someRuleSet.addMinMaxRules("Retail_Price_Validation", col("retail_price"), Bound
 
 ### Categorical Rules
 There are two types of categorical rules which are used to validate against a pre-defined list of valid
-values. Currently (as of 0.1) accepted categorical types are String, Double, Int, Long
+values. As of 0.2 accepted categorical types are String, Double, Int, Long but any types outside of this can 
+be input as an array() column of any type so long as it can be evaulated against the intput column
 ```scala
 val catNumerics = Array(
 Rule("Valid_Stores", col("store_id"), Lookups.validStoreIDs),
-Rule("Valid_Skus", col("sku"), Lookups.validSkus)
+Rule("Valid_Skus", col("sku"), Lookups.validSkus),
+Rule("Valid_zips", array_contains(col("zips"), expr("x -> f(x)")), lit(true))
 )
 
 val catStrings = Array(
@@ -116,27 +176,41 @@ Rule("Valid_Regions", col("region"), Lookups.validRegions)
 
 ### Validation
 Now that you have some rules built up... it's time to build the ruleset and validate it. As mentioned above,
-the dataframe can be simple or groupBy column[s] can be passed in (as string) to perform validation at the 
-grouped level.
+the dataframe can be a simple df or a grouped df by passing column[s] to perform validation at the 
+defined grouped level.
+
+The below is meant as a theoretical example, it will not execute because rules containing aggregate input columns
+AND non-aggregate input columns are defined throughout the rules added to the RuleSet. In practice if rules need to 
+be validated at different levels, it's best to complete a validation at each level with a RuleSet at that level.
 ```scala
-val (rulesReport, passed) = RuleSet(df)
+val validationResults = RuleSet(df)
 .add(specializedRules)
 .add(minMaxPriceRules)
 .add(catNumerics)
 .add(catStrings)
 .validate()
 
-val (rulesReport, passed) = RuleSet(df, Array("store_id"))
+val validationResults = RuleSet(df, Array("store_id"))
 .add(specializedRules)
 .add(minMaxPriceRules)
 .add(catNumerics)
 .add(catStrings)
 .validate()
 ``` 
-The validation returns two items, a boolean (true/false) as to whether all rules passed or not. If a single rule
-fails the `passed` value above will return false. The `rulesReport` is a summary of which rules failed and,
-if the input column was not an aggregate column, the number of failed records. An image of the report is below.
-![Alt Text](images/rulesReport.png)
+
+The `validate()` method returns a case class of ValidationResults which is defined as:
+```scala
+ValidationResults(completeReport: DataFrame, summaryReport: DataFrame)
+```
+AS you can see, there are two reports included, a `completeReport` and a `summaryReport`. 
+#### The completeReport
+The complete report is verbose and will add all rule validations to the right side of the original df 
+passed into RuleSet. Note that if the RuleSet is grouped, the result will include the groupBy columns and all rule
+evaluation specs and results
+
+#### The summaryReport
+The summary report is meant to be just that, a summary of the failed rules. This will return only the records that 
+failed and only the rules that failed for that record; thus, if the `summaryReport.isEmpty` then all rules passed.
 
 ## Next Steps
 Clearly, this is just a start. This is a small package and, as such, a GREAT place to start if you've never
@@ -148,23 +222,7 @@ and add it as soon as possible.
 Some ideas of great adds are:
 * Add a Python wrapper
 * Enable an external table to host the rules and have rules compiled from externally managed source (GREAT idea from Sri Tikkireddy)
-* Refactor Rule and/or Validator to implement an Abstract class or trait
-    * There's a clear opportunity to abstract away some of the redundancy between rule types.
-* Implement a fast runner 
-    * Optimize performance by failing fast for big data. Smart sampling could be implemented to review subsets
-    of columns/records and look for failures to enable a faster failure.
-* Implement tests
-    * Yeah, I know...I should have done this on day 0...but...time is always an issue. I plan to come back and add
-    tests but if you'd like to add tests, that's a great way to learn code base (especially one this small) 
-* Implement the date time rule (or somet other custom rule)
-    * The date time rule has already been scaffolded, it just needs to be built out
-    * What kind of complex rules does your business require that isn't possible here
-* Add a quarantine pattern 
-    * Enable a configuration to a Ruleset to identify records that didn't pass the validations and add
-    them to a predefined quarantine zone.
-* Add logic to attempt to auto-handle certain types of failures based on common business patterns
-* When Delta Pipelines feature is release, simplify this package by wrapping the logic with pipelines.
-
+* Implement smart sampling for large datasets and faster validation
 
 ## Legal Information
 This software is provided as-is and is not officially supported by Databricks through customer technical support channels.
@@ -173,9 +231,7 @@ Please see the [legal agreement](LICENSE.txt) and understand that issues with th
 not be answered or investigated by Databricks Support.  
 
 ## Core Contribution team
-* Lead Developer: [Daniel Tomes](https://www.linkedin.com/in/tomes/), Practice Leader, Databricks
-* Developer: <b> your name here </b> Contribute to the project
-
+* Lead Developer: [Daniel Tomes](https://www.linkedin.com/in/tomes/), Principal Architect, Databricks
 
 ## Project Support
 Please note that all projects in the /databrickslabs github account are provided for your exploration only, 
