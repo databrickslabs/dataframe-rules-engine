@@ -1,7 +1,7 @@
 package com.databricks.labs.validation
 
 import com.databricks.labs.validation.utils.Structures.{Bounds, MinMaxRuleDef}
-import org.apache.spark.sql.functions.{col, min}
+import org.apache.spark.sql.functions._
 import org.scalatest.funsuite.AnyFunSuite
 
 case class ValidationValue(ruleName: String, passed: Boolean, permitted: String, actual: String)
