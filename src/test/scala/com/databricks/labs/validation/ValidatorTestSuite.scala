@@ -430,4 +430,76 @@ class ValidatorTestSuite extends AnyFunSuite with SparkSessionFixture {
     assert(stringValidationResults.summaryReport.isEmpty)
   }
 
+  test("The input df should have no rule failures for an implicit expression rule.") {
+
+    val testDF = Seq(
+      (1, "iot_thermostat_1", 84.00, 74.00),
+      (2, "iot_thermostat_2", 67.05, 72.00),
+      (3, "iot_thermostat_3", 91.14, 76.00)
+    ).toDF("device_id", "device_name", "current_temp", "target_temp")
+
+    val expectedColumns = testDF.columns ++ Seq("TemperatureDiffExpressionRule")
+    val expectedDF = Seq(
+      (1, "iot_thermostat_1", 84.00, 74.00, ValidationValue("TemperatureDiffExpressionRule", passed = true, "(abs((current_temp - target_temp)) < 50.0)", "true")),
+      (2, "iot_thermostat_2", 67.05, 72.00, ValidationValue("TemperatureDiffExpressionRule", passed = true, "(abs((current_temp - target_temp)) < 50.0)", "true")),
+      (3, "iot_thermostat_3", 91.14, 76.00, ValidationValue("TemperatureDiffExpressionRule", passed = true, "(abs((current_temp - target_temp)) < 50.0)", "true"))
+    ).toDF(expectedColumns : _*)
+
+    val exprRuleSet = RuleSet(testDF)
+    exprRuleSet.add(Rule("TemperatureDiffExpressionRule", abs(col("current_temp") - col("target_temp")) < 50.00))
+
+    val validationResults = exprRuleSet.validate()
+
+    // Ensure that there are no failed rows for rule expression
+    assert(validationResults.summaryReport.isEmpty)
+
+    // Ensure that the ruleType is set correctly
+    assert(exprRuleSet.getRules.head.ruleType == RuleType.ValidateExpr)
+    assert(exprRuleSet.getRules.head.isImplicitBool)
+
+    // Ensure that the complete report matches the expected output
+    assert(validationResults.completeReport.exceptAll(expectedDF).count() == 0, "Expected expression df is not equal to the returned rules report.")
+
+  }
+
+  test("The input df should have a single rule failure for an expression rule.") {
+
+    val testDF = Seq(
+      (1, "iot_thermostat_1", 84.00, 74.00, -10.00, -10.00),
+      (2, "iot_thermostat_2", 76.00, 66.00, -10.00, -10.00),
+      (3, "iot_thermostat_3", 91.00, 69.00, -20.00, -10.00)
+    ).toDF("device_id", "device_name", "current_temp", "target_temp", "temp_diff", "cooling_rate")
+
+    val expectedColumns = testDF.columns ++ Seq("ImplicitCoolingExpressionRule")
+    val expectedDF = Seq(
+      (1, "iot_thermostat_1", 84, 74, -10, -10,
+        ValidationValue("CoolingExpressionRule", passed = true, "abs(cooling_rate)", "10.0")
+      ),
+      (2, "iot_thermostat_2", 76, 66, -10, -10,
+        ValidationValue("CoolingExpressionRule", passed = true, "abs(cooling_rate)", "10.0")
+      ),
+      (3, "iot_thermostat_3", 91, 69, -20, -10,
+        ValidationValue("CoolingExpressionRule", passed = false, "abs(cooling_rate)", "10.0")
+      )
+    ).toDF(expectedColumns : _*)
+
+    val exprRuleSet = RuleSet(testDF)
+    // Create a rule that ensure the cooling rate can accommodate the temp difference
+    exprRuleSet.add(Rule("CoolingExpressionRule", abs(col("cooling_rate")), expr("abs(temp_diff)")))
+
+    val validationResults = exprRuleSet.validate()
+
+    // Ensure that there is a single row failure
+    assert(validationResults.summaryReport.count() > 0)
+    assert(validationResults.summaryReport.count() == 1)
+
+    // Ensure that the ruleType is set correctly
+    assert(exprRuleSet.getRules.head.ruleType == RuleType.ValidateExpr)
+    assert(!exprRuleSet.getRules.head.isImplicitBool)
+
+    // Ensure that the complete report matches the expected output
+    assert(validationResults.completeReport.exceptAll(expectedDF).count() == 0, "Expected explicit expression df is not equal to the returned rules report.")
+
+  }  
+
 }
