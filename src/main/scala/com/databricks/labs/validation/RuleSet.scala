@@ -35,7 +35,7 @@ class RuleSet extends SparkSessionWrapper {
 
   private def setGroupByCols(value: Seq[String]): this.type = {
     _groupBys = value
-    _isGrouped = true
+    _isGrouped = !value.isEmpty
     this
   }
 
