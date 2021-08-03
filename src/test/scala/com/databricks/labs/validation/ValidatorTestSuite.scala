@@ -2,6 +2,7 @@ package com.databricks.labs.validation
 
 import com.databricks.labs.validation.utils.Structures.{Bounds, MinMaxRuleDef}
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.expressions.Window
 import org.scalatest.funsuite.AnyFunSuite
 
 case class ValidationValue(ruleName: String, passed: Boolean, permitted: String, actual: String)
@@ -443,7 +444,7 @@ class ValidatorTestSuite extends AnyFunSuite with SparkSessionFixture {
       (1, "iot_thermostat_1", 84.00, 74.00, ValidationValue("TemperatureDiffExpressionRule", passed = true, "(abs((current_temp - target_temp)) < 50.0)", "true")),
       (2, "iot_thermostat_2", 67.05, 72.00, ValidationValue("TemperatureDiffExpressionRule", passed = true, "(abs((current_temp - target_temp)) < 50.0)", "true")),
       (3, "iot_thermostat_3", 91.14, 76.00, ValidationValue("TemperatureDiffExpressionRule", passed = true, "(abs((current_temp - target_temp)) < 50.0)", "true"))
-    ).toDF(expectedColumns : _*)
+    ).toDF(expectedColumns: _*)
 
     val exprRuleSet = RuleSet(testDF)
     exprRuleSet.add(Rule("TemperatureDiffExpressionRule", abs(col("current_temp") - col("target_temp")) < 50.00))
@@ -481,7 +482,7 @@ class ValidatorTestSuite extends AnyFunSuite with SparkSessionFixture {
       (3, "iot_thermostat_3", 91, 69, -20, -10,
         ValidationValue("CoolingExpressionRule", passed = false, "abs(cooling_rate)", "10.0")
       )
-    ).toDF(expectedColumns : _*)
+    ).toDF(expectedColumns: _*)
 
     val exprRuleSet = RuleSet(testDF)
     // Create a rule that ensure the cooling rate can accommodate the temp difference
@@ -500,6 +501,62 @@ class ValidatorTestSuite extends AnyFunSuite with SparkSessionFixture {
     // Ensure that the complete report matches the expected output
     assert(validationResults.completeReport.exceptAll(expectedDF).count() == 0, "Expected explicit expression df is not equal to the returned rules report.")
 
-  }  
+  }
+
+  test("The input df should have 3 rule failures for complex expression rules.") {
+
+    val testDF = Seq(
+      ("Northwest", 1001, 123256, 9.32, 8.99, 4.23, "2021-04-01", "2020-02-01 12:00:00.000"), // bad expiration date
+      ("Northwest", 1001, 123456, 19.99, 16.49, 12.99, "2021-07-26", "2020-02-02 12:08:00.000"),
+      ("Northwest", 1001, 123456, 0.99, 0.99, 0.10, "2021-07-26", "2020-02-02 12:10:00.000"), // price change too rapid -- same day
+      ("Northwest", 1001, 123456, 0.98, 0.90, 0.10, "2021-07-26", "2020-02-05 12:13:00.000"),
+      ("Northwest", 1001, 123456, 0.99, 0.99, 0.10, "2021-07-26", "2020-02-07 00:00:00.000"),
+      ("Northwest", 1001, 122987, -9.99, -9.49, -6.49, "2021-07-26", "2021-02-01 00:00:00.000"),
+    ).toDF("region", "store_id", "sku", "retail_price", "scan_price", "cost", "expiration_date", "create_ts")
+      .withColumn("create_ts", 'create_ts.cast("timestamp"))
+      .withColumn("create_dt", 'create_ts.cast("date"))
+
+    // Limit price updates to at most one per day
+    val window = Window.partitionBy("region", "store_id", "sku").orderBy("create_ts")
+    val skuUpdateRule = Rule("One_Update_Per_Day_Rule", unix_timestamp(col("create_ts")) - unix_timestamp(lag("create_ts", 1).over(window)) > 60 * 60 * 24)
+
+    // Limit expiration date to be within a range
+    val expirationDateRule = Rule("Expiration_Date_Rule", col("expiration_date").cast("date").between("2021-05-01", "2021-12-31"))
+
+    // Group by region, store_id, sku, expiration_date, create_ts
+    val validDatesRuleset = RuleSet(testDF, Array(skuUpdateRule, expirationDateRule), Seq("region", "store_id", "sku", "expiration_date", "create_ts"))
+    val validDatesResults = validDatesRuleset.validate()
+
+    // Ensure that there are 2 rule failures
+    assert(validDatesResults.summaryReport.count() == 2)
+    assert(validDatesResults.completeReport.filter(not(col("One_Update_Per_Day_Rule.passed"))).count() == 1)
+    assert(validDatesResults.completeReport.filter(not(col("Expiration_Date_Rule.passed"))).count() == 1)
+    assert(validDatesResults.completeReport.filter(not(col("One_Update_Per_Day_Rule.passed"))).select("sku").as[Int].collect.head == 123456)
+    assert(validDatesResults.completeReport.filter(not(col("Expiration_Date_Rule.passed"))).select("sku").as[Int].collect.head == 123256)
+
+    // Ensure that the ruleTypes are set correctly
+    assert(validDatesRuleset.getRules.count(_.ruleType == RuleType.ValidateExpr) == 2)
+    assert(validDatesRuleset.getRules.count(_.isImplicitBool) == 2)
+    assert(validDatesRuleset.getGroupBys.length == 5)
+
+    // Limit price columns to be non-negative amounts
+    val nonNegativeColumns = array(col("retail_price"), col("scan_price"), col("cost"))
+    val nonNegativeValueRule = Rule("Non_Negative_Values_Rule", size(filter(nonNegativeColumns, c => c <= 0.0)) === 0)
+
+    // Group by region, store_id, sku, retail_price, scan_price, cost
+    val nonNegativeValuesRuleset = RuleSet(testDF, Array(nonNegativeValueRule), Seq("region", "store_id", "sku", "retail_price", "scan_price", "cost"))
+    val nonNegativeValuesResults = nonNegativeValuesRuleset.validate()
+
+    // Ensure that there is 1 rule failure
+    assert(nonNegativeValuesResults.summaryReport.count() == 1)
+    assert(nonNegativeValuesResults.completeReport.filter(not(col("Non_Negative_Values_Rule.passed"))).count() == 1)
+    assert(nonNegativeValuesResults.completeReport.filter(not(col("Non_Negative_Values_Rule.passed"))).select("sku").as[Int].collect.head == 122987)
+
+    // Ensure that the ruleType is set correctly
+    assert(nonNegativeValuesRuleset.getRules.head.ruleType == RuleType.ValidateExpr)
+    assert(nonNegativeValuesRuleset.getRules.head.isImplicitBool)
+    assert(nonNegativeValuesRuleset.getGroupBys.length == 6)
+
+  }
 
 }
