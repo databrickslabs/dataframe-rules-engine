@@ -148,13 +148,22 @@ class RuleSetTestSuite extends AnyFunSuite with SparkSessionFixture {
     val mergedRuleSet = groupedRuleSet.add(msrpBoundsRuleSet)
 
     // Ensure that the RuleSet DataFrame is set properly
+    assert(mergedRuleSet.getGroupBys.length == 1)
     assert(mergedRuleSet.getDf.exceptAll(testDF).count() == 0, "RuleSet DataFrame is not equal to the input DataFrame.")
 
     // Ensure that the RuleSet properties are set properly
-    assert(mergedRuleSet.getGroupBys.isEmpty)
-    assert(mergedRuleSet.getRules.length == 2)
-    assert(Seq("Valid_Auto_MSRP_Rule_min", "Valid_Auto_MSRP_Rule_max").contains(msrpBoundsRuleSet.getRules(0).ruleName))
-    assert(Seq("Valid_Auto_MSRP_Rule_min", "Valid_Auto_MSRP_Rule_max").contains(msrpBoundsRuleSet.getRules(1).ruleName))
+    assert(mergedRuleSet.getRules.length == 4)
+    val mergedRuleNames = Seq("Valid_Auto_MSRP_Rule_min", "Valid_Auto_MSRP_Rule_max", "Valid_Auto_Maker_Rule", "Valid_Auto_Models_Rule")
+    assert(mergedRuleSet.getRules.count(r => mergedRuleNames.contains(r.ruleName)) == 4)
+
+    // Ensure groupBy columns are merged properly
+    val groupedLovRuleSet = RuleSet(testDF, Array(makeLovRule, modelLovRule), Array("make"))
+    val mergedTheOtherWay = msrpBoundsRuleSet.add(groupedLovRuleSet)
+    assert(mergedTheOtherWay.getGroupBys.length == 1)
+    assert(mergedTheOtherWay.getGroupBys.head == "make")
+    assert(mergedTheOtherWay.getDf.exceptAll(testDF).count() == 0)
+    mergedTheOtherWay.getRules.map(_.ruleName).foreach(println)
+    assert(mergedTheOtherWay.getRules.count(r => mergedRuleNames.contains(r.ruleName)) == 4)
 
   }
 
