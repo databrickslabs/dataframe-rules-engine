@@ -346,7 +346,7 @@ class ValidatorTestSuite extends AnyFunSuite with SparkSessionFixture {
     assert(validationResults.completeReport.exceptAll(expectedDF).count() == 0, "Expected df is not equal to the returned rules report.")
   }
 
-  test("Validate list of values with numeric types, string types and long types.") {
+  test("Validate list of values with integer, double, and long types.") {
     val testDF = Seq(
       ("food_a", 2.51, 3, 111111111111111L),
       ("food_b", 5.11, 6, 211111111111111L),
@@ -396,36 +396,93 @@ class ValidatorTestSuite extends AnyFunSuite with SparkSessionFixture {
     // Ensure that all rows passed the Rules
     assert(numericValidationResults.summaryReport.isEmpty)
 
-    // Create a String List of Values Rule
-    val stringRule = Rule("CheckIfProductNameInLOV", col("product_name"), Array("food_a", "food_b", "food_c"))
-
-    val expectedStringLovColumns = testDF.columns ++ Seq("CheckIfProductNameInLOV")
-    val stringLovExpectedDF = Seq(
+    // Ensure rows can be validated against a list of invalid numerics
+    val invalidNumColumns = testDF.columns ++ Seq("CheckIfCostIsInLOV", "CheckIfScanPriceIsInLOV", "CheckIfIdIsInLOV")
+    val invalidNumsExpectedDF = Seq(
       ("food_a", 2.51, 3, 111111111111111L,
-        ValidationValue("CheckIfProductNameInLOV", passed = true, "[food_a, food_b, food_c]", "food_a")
+        ValidationValue("Invalid_Price_Rule", passed = true, "[-1.0, -5.0, 0.0, 1000.0]", "2.51"),
+        ValidationValue("Invalid_Id_Rule", passed = true, "[7.11111111111111E14, 8.11111111111111E14, 9.11111111111111E14]", "111111111111111"),
+        ValidationValue("Invalid_Cost_Rule", passed = true, "[99.0, 10000.0, 100000.0, 1000000.0]", "3")
       ),
       ("food_b", 5.11, 6, 211111111111111L,
-        ValidationValue("CheckIfProductNameInLOV", passed = true, "[food_a, food_b, food_c]", "food_b")
+        ValidationValue("Invalid_Price_Rule", passed = true, "[-1.0, -5.0, 0.0, 1000.0]", "5.11"),
+        ValidationValue("Invalid_Id_Rule", passed = true, "[7.11111111111111E14, 8.11111111111111E14, 9.11111111111111E14]", "211111111111111"),
+        ValidationValue("Invalid_Cost_Rule", passed = true, "[99.0, 10000.0, 100000.0, 1000000.0]", "6")
       ),
       ("food_c", 8.22, 99, 311111111111111L,
-        ValidationValue("CheckIfProductNameInLOV", passed = true, "[food_a, food_b, food_c]", "food_c")
+        ValidationValue("Invalid_Price_Rule", passed = true, "[-1.0, -5.0, 0.0, 1000.0]", "8.22"),
+        ValidationValue("Invalid_Id_Rule", passed = true, "[7.11111111111111E14, 8.11111111111111E14, 9.11111111111111E14]", "311111111111111"),
+        ValidationValue("Invalid_Cost_Rule", passed = false, "[99.0, 10000.0, 100000.0, 1000000.0]", "99")
+      )
+    ).toDF(expectedColumns: _*)
+
+    val invalidPrices = Array(-1.00, -5.00, 0.00, 1000.0)
+    val invalidIds = Array(711111111111111L, 811111111111111L, 911111111111111L)
+    val invalidCosts = Array(99, 10000, 100000, 1000000)
+    val invalidNumericalRules = Array(
+      Rule("Invalid_Price_Rule", col("scan_price"), invalidPrices, invertMatch = true),
+      Rule("Invalid_Id_Rule", col("id"), invalidIds, invertMatch = true),
+      Rule("Invalid_Cost_Rule", col("cost"), invalidCosts, invertMatch = true),
+    )
+    val invalidNumericalResults = RuleSet(testDF).add(invalidNumericalRules).validate()
+
+    // Ensure that there is 1 failed row
+    assert(invalidNumericalResults.summaryReport.count() == 1)
+
+    // Ensure that the invertMatch attribute is set properly
+    assert(invalidNumericalRules.count(_.invertMatch) == 3)
+
+    // Ensure that the validation report matches expected output
+    assert(invalidNumericalResults.completeReport.exceptAll(invalidNumsExpectedDF).count() == 0, "Expected invalid numerics df is not equal to the returned rules report.")
+
+  }
+
+  test("The input df should have no rule failures for valid string LOVs.") {
+    val testDF = Seq(
+      ("food_a", 2.51, 3, 111111111111111L),
+      ("food_b", 5.11, 6, 211111111111111L),
+      ("food_c", 8.22, 99, 311111111111111L)
+    ).toDF("product_name", "scan_price", "cost", "id")
+
+    // Create a String List of Values Rule
+    val validProductNamesRule = Rule("CheckIfProductNameInLOV", col("product_name"), Array("food_a", "food_b", "food_c"))
+    val stringIgnoreCaseRule = Rule("IgnoreCaseProductNameLOV", col("product_name"), Array("Food_B", "food_A", "FOOD_C"), ignoreCase = true)
+    val invalidFoodsRule = Rule("InvalidProductNameLOV", col("product_name"), Array("food_x", "food_y", "food_z"), invertMatch = true)
+
+    val expectedStringLovColumns = testDF.columns ++ Seq("CheckIfProductNameInLOV", "IgnoreCaseProductNameLOV", "InvalidProductNameLOV")
+    val stringLovExpectedDF = Seq(
+      ("food_a", 2.51, 3, 111111111111111L,
+        ValidationValue("CheckIfProductNameInLOV", passed = true, "[food_a, food_b, food_c]", "food_a"),
+        ValidationValue("IgnoreCaseProductNameLOV", passed = true, "[food_b, food_a, food_c]", "food_a"),
+        ValidationValue("InvalidProductNameLOV", passed = true, "[food_x, food_y, food_z]", "food_a")
+      ),
+      ("food_b", 5.11, 6, 211111111111111L,
+        ValidationValue("CheckIfProductNameInLOV", passed = true, "[food_a, food_b, food_c]", "food_b"),
+        ValidationValue("IgnoreCaseProductNameLOV", passed = true, "[food_b, food_a, food_c]", "food_b"),
+        ValidationValue("InvalidProductNameLOV", passed = true, "[food_x, food_y, food_z]", "food_b")
+      ),
+      ("food_c", 8.22, 99, 311111111111111L,
+        ValidationValue("CheckIfProductNameInLOV", passed = true, "[food_a, food_b, food_c]", "food_c"),
+        ValidationValue("IgnoreCaseProductNameLOV", passed = true, "[food_b, food_a, food_c]", "food_c"),
+        ValidationValue("InvalidProductNameLOV", passed = true, "[food_x, food_y, food_z]", "food_c")
       )
     ).toDF(expectedStringLovColumns: _*)
 
     // Validate testDF against String LOV Rule
-    val stringRuleSet = RuleSet(testDF)
-    stringRuleSet.add(stringRule)
+    val productNameRules = Array(validProductNamesRule, stringIgnoreCaseRule, invalidFoodsRule)
+    val stringRuleSet = RuleSet(testDF).add(productNameRules)
+
     val stringValidationResults = stringRuleSet.validate()
 
     // Ensure that the ruleType is set properly
-    assert(stringRule.ruleType == RuleType.ValidateStrings)
+    assert(validProductNamesRule.ruleType == RuleType.ValidateStrings)
 
     // Ensure that the complete report matches expected output
     assert(stringValidationResults.completeReport.exceptAll(stringLovExpectedDF).count() == 0, "Expected String LOV df is not equal to the returned rules report.")
 
     // Ensure that there are infinite boundaries, by default
-    assert(stringRule.boundaries.lower == Double.NegativeInfinity, "Lower boundaries are not negatively infinite.")
-    assert(stringRule.boundaries.upper == Double.PositiveInfinity, "Upper boundaries are not positively infinite.")
+    assert(validProductNamesRule.boundaries.lower == Double.NegativeInfinity, "Lower boundaries are not negatively infinite.")
+    assert(validProductNamesRule.boundaries.upper == Double.PositiveInfinity, "Upper boundaries are not positively infinite.")
 
     // Ensure that all rows passed; there are no failed rows
     assert(stringValidationResults.summaryReport.isEmpty)

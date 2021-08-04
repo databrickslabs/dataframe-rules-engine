@@ -162,7 +162,6 @@ class RuleSetTestSuite extends AnyFunSuite with SparkSessionFixture {
     assert(mergedTheOtherWay.getGroupBys.length == 1)
     assert(mergedTheOtherWay.getGroupBys.head == "make")
     assert(mergedTheOtherWay.getDf.exceptAll(testDF).count() == 0)
-    mergedTheOtherWay.getRules.map(_.ruleName).foreach(println)
     assert(mergedTheOtherWay.getRules.count(r => mergedRuleNames.contains(r.ruleName)) == 4)
 
   }
