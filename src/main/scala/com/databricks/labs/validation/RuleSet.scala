@@ -1,7 +1,7 @@
 package com.databricks.labs.validation
 
 import com.databricks.labs.validation.utils.SparkSessionWrapper
-import com.databricks.labs.validation.utils.Structures.{Bounds, InvalidRuleException, MinMaxRuleDef, ValidationException, ValidationResults}
+import com.databricks.labs.validation.utils.Structures.{Bounds, MinMaxRuleDef, ValidationException, ValidationResults}
 import org.apache.log4j.Logger
 import org.apache.spark.sql.functions.{max, min}
 import org.apache.spark.sql.types.BooleanType

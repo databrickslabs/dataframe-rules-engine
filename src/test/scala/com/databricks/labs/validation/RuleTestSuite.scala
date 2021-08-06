@@ -7,8 +7,6 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class RuleTestSuite extends AnyFunSuite with SparkSessionFixture {
 
-  import spark.implicits._
-
   spark.sparkContext.setLogLevel("ERROR")
 
   test("A MinMaxRule should be instantiated correctly.") {
