@@ -1,11 +1,8 @@
 package com.databricks.labs.validation
 
-import com.databricks.labs.validation.utils.Structures.{Bounds, ValidationException}
+import com.databricks.labs.validation.utils.Structures.Bounds
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.functions.{array, lit}
-import org.apache.spark.sql.types.BooleanType
-
-import java.util.UUID
 
 /**
  * Definition of a rule
@@ -21,6 +18,8 @@ class Rule(
   private var _validNumerics: Column = array(lit(null).cast("double"))
   private var _validStrings: Column = array(lit(null).cast("string"))
   private var _implicitBoolean: Boolean = false
+  private var _ignoreCase: Boolean = false
+  private var _invertMatch: Boolean = false
   val inputColumnName: String = inputColumn.expr.toString().replace("'", "")
 
   override def toString: String = {
@@ -47,8 +46,8 @@ class Rule(
     this
   }
 
-  private def setValidStrings(value: Array[String]): this.type = {
-    _validStrings = lit(value)
+  private def setValidStrings(value: Array[String], ignoreCase: Boolean): this.type = {
+    _validStrings = if(ignoreCase) lit(value.map(_.toLowerCase)) else lit(value)
     inputColumn.expr.children.map(_.prettyName)
     this
   }
@@ -63,6 +62,16 @@ class Rule(
     this
   }
 
+  private def setIgnoreCase(value: Boolean): this.type = {
+    _ignoreCase = value
+    this
+  }
+
+  private def setInvertMatch(value: Boolean): this.type = {
+    _invertMatch = value
+    this
+  }
+
   def boundaries: Bounds = _boundaries
 
   def validNumerics: Column = _validNumerics
@@ -72,6 +81,10 @@ class Rule(
   def validExpr: Column = _validExpr
 
   def isImplicitBool: Boolean = _implicitBoolean
+
+  def ignoreCase: Boolean = _ignoreCase
+
+  def invertMatch: Boolean = _invertMatch
 
   def isAgg: Boolean = {
     inputColumn.expr.prettyName == "aggregateexpression" ||
@@ -117,11 +130,36 @@ object Rule {
   def apply(
              ruleName: String,
              column: Column,
+             validNumerics: Array[Double],
+             invertMatch: Boolean
+           ): Rule = {
+
+    new Rule(ruleName, column, RuleType.ValidateNumerics)
+      .setValidNumerics(validNumerics)
+      .setInvertMatch(invertMatch)
+  }
+
+  def apply(
+             ruleName: String,
+             column: Column,
              validNumerics: Array[Double]
            ): Rule = {
 
     new Rule(ruleName, column, RuleType.ValidateNumerics)
       .setValidNumerics(validNumerics)
+      .setInvertMatch(false)
+  }
+
+  def apply(
+             ruleName: String,
+             column: Column,
+             validNumerics: Array[Long],
+             invertMatch: Boolean
+           ): Rule = {
+
+    new Rule(ruleName, column, RuleType.ValidateNumerics)
+      .setValidNumerics(validNumerics.map(_.toString.toDouble))
+      .setInvertMatch(invertMatch)
   }
 
   def apply(
@@ -132,6 +170,19 @@ object Rule {
 
     new Rule(ruleName, column, RuleType.ValidateNumerics)
       .setValidNumerics(validNumerics.map(_.toString.toDouble))
+      .setInvertMatch(false)
+  }
+
+  def apply(
+             ruleName: String,
+             column: Column,
+             validNumerics: Array[Int],
+             invertMatch: Boolean
+           ): Rule = {
+
+    new Rule(ruleName, column, RuleType.ValidateNumerics)
+      .setValidNumerics(validNumerics.map(_.toString.toDouble))
+      .setInvertMatch(invertMatch)
   }
 
   def apply(
@@ -142,16 +193,21 @@ object Rule {
 
     new Rule(ruleName, column, RuleType.ValidateNumerics)
       .setValidNumerics(validNumerics.map(_.toString.toDouble))
+      .setInvertMatch(false)
   }
 
   def apply(
              ruleName: String,
              column: Column,
-             validStrings: Array[String]
+             validStrings: Array[String],
+             ignoreCase: Boolean = false,
+             invertMatch: Boolean = false
            ): Rule = {
 
     new Rule(ruleName, column, RuleType.ValidateStrings)
-      .setValidStrings(validStrings)
+      .setValidStrings(validStrings, ignoreCase)
+      .setIgnoreCase(ignoreCase)
+      .setInvertMatch(invertMatch)
   }
 
 }

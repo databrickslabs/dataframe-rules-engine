@@ -50,11 +50,12 @@ object Example extends App with SparkSessionWrapper {
 
   val catNumerics = Array(
     Rule("Valid_Stores", col("store_id"), Lookups.validStoreIDs),
-    Rule("Valid_Skus", col("sku"), Lookups.validSkus)
+    Rule("Valid_Skus", col("sku"), Lookups.validSkus),
+    Rule("Invalid_Skus", col("sku"), Lookups.invalidSkus, invertMatch=true)
   )
 
   val catStrings = Array(
-    Rule("Valid_Regions", col("region"), Lookups.validRegions)
+    Rule("Valid_Regions", col("region"), Lookups.validRegions, ignoreCase=true)
   )
 
   //TODO - validate datetime
@@ -76,18 +77,18 @@ object Example extends App with SparkSessionWrapper {
     .withColumn("create_dt", 'create_ts.cast("date"))
 
   // Doing the validation
-  // The validate method will return the rules report dataframe which breaks down which rules passed and which
-  // rules failed and how/why. The second return value returns a boolean to determine whether or not all tests passed
-//  val (rulesReport, passed) = RuleSet(df, Array("store_id"))
-  val (rulesReport, passed) = RuleSet(df)
+  // The validate method will return two reports - a complete report and a summary report.
+  // The complete report is verbose and will add all rule validations to the right side of the original
+  // df passed into RuleSet, while the summary report will contain all of the rows that failed one or more
+  // Rule evaluations.
+  val validationResults = RuleSet(df)
     .add(specializedRules)
     .add(minMaxPriceRules)
     .add(catNumerics)
     .add(catStrings)
-    .validate(2)
+    .validate()
 
-  rulesReport.show(200, false)
-//  rulesReport.printSchema()
+  validationResults.completeReport.show(200, false)
 
 
 }

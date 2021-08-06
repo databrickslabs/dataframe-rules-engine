@@ -35,7 +35,7 @@ class RuleSet extends SparkSessionWrapper {
 
   private def setGroupByCols(value: Seq[String]): this.type = {
     _groupBys = value
-    _isGrouped = true
+    _isGrouped = value.nonEmpty
     this
   }
 
@@ -110,15 +110,16 @@ class RuleSet extends SparkSessionWrapper {
   }
 
   /**
-   * Merge two rule sets by adding one rule set to another
-   *
-   * @param ruleSet RuleSet to be added
-   * @return RuleSet
-   */
+    * Merge two rule sets by adding one rule set to another
+    *
+    * @param ruleSet RuleSet to be added
+    * @return RuleSet
+    */
   def add(ruleSet: RuleSet): RuleSet = {
-    new RuleSet().setDF(ruleSet.getDf)
-      .setIsGrouped(ruleSet.isGrouped)
-      .add(ruleSet.getRules)
+    val addtnlGroupBys = ruleSet.getGroupBys diff this.getGroupBys
+    val mergedGroupBys = this.getGroupBys ++ addtnlGroupBys
+    this.add(ruleSet.getRules)
+      .setGroupByCols(mergedGroupBys)
   }
 
   /**

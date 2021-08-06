@@ -29,16 +29,19 @@ class Validator(ruleSet: RuleSet, detailLvl: Int) extends SparkSessionWrapper {
             rule.inputColumn.cast("string").alias("actual")
           ).alias(rule.ruleName)
         case RuleType.ValidateNumerics =>
+          val ruleExpr = if(rule.invertMatch) not(array_contains(rule.validNumerics, rule.inputColumn)) else array_contains(rule.validNumerics, rule.inputColumn)
           struct(
             lit(rule.ruleName).alias("ruleName"),
-            array_contains(rule.validNumerics, rule.inputColumn).alias("passed"),
+            ruleExpr.alias("passed"),
             rule.validNumerics.cast("string").alias("permitted"),
             rule.inputColumn.cast("string").alias("actual")
           ).alias(rule.ruleName)
         case RuleType.ValidateStrings =>
+          val ruleValue = if(rule.ignoreCase) lower(rule.inputColumn) else rule.inputColumn
+          val ruleExpr = if(rule.invertMatch) not(array_contains(rule.validStrings, ruleValue)) else array_contains(rule.validStrings, ruleValue)
           struct(
             lit(rule.ruleName).alias("ruleName"),
-            array_contains(rule.validStrings, rule.inputColumn).alias("passed"),
+            ruleExpr.alias("passed"),
             rule.validStrings.cast("string").alias("permitted"),
             rule.inputColumn.cast("string").alias("actual")
           ).alias(rule.ruleName)

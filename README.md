@@ -174,7 +174,8 @@ someRuleSet.addMinMaxRules("Retail_Price_Validation", col("retail_price"), Bound
 ### Categorical Rules
 There are two types of categorical rules which are used to validate against a pre-defined list of valid
 values. As of 0.2 accepted categorical types are String, Double, Int, Long but any types outside of this can 
-be input as an array() column of any type so long as it can be evaulated against the intput column
+be input as an array() column of any type so long as it can be evaluated against the input column.
+
 ```scala
 val catNumerics = Array(
 Rule("Valid_Stores", col("store_id"), Lookups.validStoreIDs),
@@ -186,6 +187,18 @@ val catStrings = Array(
 Rule("Valid_Regions", col("region"), Lookups.validRegions)
 )
 ```
+
+An optional `ignoreCase` parameter can be specified when evaluating against a list of String values to ignore or apply
+case-sensitivity. By default, input columns will be evaluated against a list of Strings with case-sensitivity applied.
+```scala
+Rule("Valid_Regions", col("region"), Lookups.validRegions, ignoreCase=true)
+```
+
+Furthermore, the evaluation of categorical rules can be inverted by specifying `invertMatch=true` as a parameter. 
+This can be handy when defining a Rule that an input column cannot match list of invalid values. For example:
+```scala
+Rule("Invalid_Skus", col("sku"), Lookups.invalidSkus, invertMatch=true)
+``` 
 
 ### Validation
 Now that you have some rules built up... it's time to build the ruleset and validate it. As mentioned above,

@@ -13,7 +13,9 @@ object Lookups {
 
   final val validRegions = Array("Northeast", "Southeast", "Midwest", "Northwest", "Southcentral", "Southwest")
 
-  final val validSkus = Array(123456, 122987,123256, 173544, 163212, 365423, 168212)
+  final val validSkus = Array(123456, 122987, 123256, 173544, 163212, 365423, 168212)
+
+  final val invalidSkus = Array(9123456, 9122987, 9123256, 9173544, 9163212, 9365423, 9168212)
 
 }
 
