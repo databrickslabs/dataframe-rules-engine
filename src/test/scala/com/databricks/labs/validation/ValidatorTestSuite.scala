@@ -616,4 +616,43 @@ class ValidatorTestSuite extends AnyFunSuite with SparkSessionFixture {
 
   }
 
+  test("A rule name can have special characters and whitespaces in its name.") {
+
+    val testDF = Seq(
+      (1, "iot_thermostat_1", 84.00, 74.00, -10.00, -10.00),
+      (2, "iot_thermostat_2", 76.00, 66.00, -10.00, -10.00),
+      (3, "iot_thermostat_3", 91.00, 69.00, -20.00, -10.00)
+    ).toDF("device_id", "device_name", "current_temp", "target_temp", "temp_diff", "cooling_rate")
+    val expectedColumns = testDF.columns ++ Seq("Valid Temperature Range Rule", "!@#$%^&*()--++==%sCooling_Rates~[ ,;{}()\\n\\t=\\\\]+")
+    val expectedDF = Seq(
+      (1, "iot_thermostat_1", 84.00, 74.00, -10.00, -10.00,
+        ValidationValue("Valid Temperature Range Rule", passed=true, "[57.0, 85.0]", "84.0"),
+        ValidationValue("!@#$%^&*()--++==%sCooling_Rates~[ ,;{}()\\n\\t=\\\\]+", passed=true, "[-20.0, -1.0]", "-10.0")
+      ),
+      (2, "iot_thermostat_2", 76.00, 66.00, -10.00, -10.00,
+        ValidationValue("Valid Temperature Range Rule", passed=true, "[57.0, 85.0]", "76.0"),
+        ValidationValue("!@#$%^&*()--++==%sCooling_Rates~[ ,;{}()\\n\\t=\\\\]+", passed=true, "[-20.0, -1.0]", "-10.0")
+      ),
+      (3, "iot_thermostat_3", 91.00, 69.00, -20.00, -10.00,
+        ValidationValue("Valid Temperature Range Rule", passed=false, "[57.0, 85.0]", "91.0"),
+        ValidationValue("!@#$%^&*()--++==%sCooling_Rates~[ ,;{}()\\n\\t=\\\\]+", passed=true, "[-20.0, -1.0]", "-10.0")
+
+      )
+    ).toDF(expectedColumns: _*)
+
+    val whiteSpaceRule = Rule("Valid Temperature Range Rule", col("current_temp"), Bounds(57.00, 85.00))
+    val specialCharsRule = Rule("!@#$%^&*()--++==%sCooling_Rates~[ ,;{}()\\n\\t=\\\\]+", col("cooling_rate"), Bounds(-20.00, -1.00))
+    val whiteSpaceRuleSet = RuleSet(testDF)
+        .add(whiteSpaceRule)
+        .add(specialCharsRule)
+    val validationResults = whiteSpaceRuleSet.validate()
+
+    // Ensure that there is a single temperature rule failure
+    assert(validationResults.summaryReport.count() == 1)
+
+    // Ensure that the complete report matches the expected output
+    assert(validationResults.completeReport.exceptAll(expectedDF).count() == 0, "Expected special char df is not equal to the returned rules report.")
+
+  }
+
 }

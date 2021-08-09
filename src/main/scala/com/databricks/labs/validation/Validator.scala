@@ -10,8 +10,8 @@ class Validator(ruleSet: RuleSet, detailLvl: Int) extends SparkSessionWrapper {
   private val byCols = ruleSet.getGroupBys map col
 
   private def buildFailureReport(df: DataFrame): DataFrame = {
-    val rulesResultsArray = array(ruleSet.getRules.map(_.ruleName) map col: _*)
-    val onlyFailedRecords = expr(s"""filter($rulesResultsArray, results -> !results.passed)""")
+    val rulesResultCols = ruleSet.getRules.map(r => s"`${r.ruleName}`").mkString(", ")
+    val onlyFailedRecords = expr(s"""filter(array($rulesResultCols), results -> !results.passed)""")
     df.withColumn("failed_rules", onlyFailedRecords)
       .drop(ruleSet.getRules.map(_.ruleName): _*)
       .filter(size(col("failed_rules")) > 0)
