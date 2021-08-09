@@ -93,7 +93,18 @@ class RuleSet extends SparkSessionWrapper {
    * @param rules Array for Rules
    * @return RuleSet
    */
-  def add(rules: Seq[Rule]): this.type = {
+  def add(rules: => Seq[Rule]): this.type = {
+    rules.foreach(rule => _rules.append(rule))
+    this
+  }
+
+  /**
+    * add an expanded sequence of rules
+    *
+    * @param rules expanded Rules sequence
+    * @return RuleSet
+    */
+  def add(rules: Rule*): this.type = {
     rules.foreach(rule => _rules.append(rule))
     this
   }
