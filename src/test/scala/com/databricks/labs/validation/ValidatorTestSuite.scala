@@ -642,10 +642,10 @@ class ValidatorTestSuite extends AnyFunSuite with SparkSessionFixture {
 
     val whiteSpaceRule = Rule("Valid Temperature Range Rule", col("current_temp"), Bounds(57.00, 85.00))
     val specialCharsRule = Rule("!@#$%^&*()--++==%sCooling_Rates~[ ,;{}()\\n\\t=\\\\]+", col("cooling_rate"), Bounds(-20.00, -1.00))
-    val whiteSpaceRuleSet = RuleSet(testDF)
+    val specialCharsRuleSet = RuleSet(testDF)
         .add(whiteSpaceRule)
         .add(specialCharsRule)
-    val validationResults = whiteSpaceRuleSet.validate()
+    val validationResults = specialCharsRuleSet.validate()
 
     // Ensure that there is a single temperature rule failure
     assert(validationResults.summaryReport.count() == 1)
