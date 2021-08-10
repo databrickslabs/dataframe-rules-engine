@@ -1,4 +1,5 @@
 name := "dataframe-rules-engine"
+import com.typesafe.sbt.SbtNativePackager.Universal
 
 organization := "com.databricks.labs"
 
