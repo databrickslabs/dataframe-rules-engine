@@ -166,4 +166,22 @@ class RuleSetTestSuite extends AnyFunSuite with SparkSessionFixture {
 
   }
 
+  test("An expanded sequence of rules can be added to a rule set.") {
+    val testDF = Seq(
+      (1, 2, 3),
+      (4, 5, 6),
+      (7, 8, 9)
+    ).toDF("retail_price", "scan_price", "cost")
+    val validPriceRule = Rule("Valid_Scan_Price_Rule", col("scan_price"), Bounds(0.01, 1000.0))
+    val validCostRule = Rule("Valid_Cost_Rule", col("cost"), Bounds(0.0, 1000.0))
+    val ruleSeq = Seq(validCostRule, validPriceRule)
+    val testRuleSet = RuleSet(testDF).add(ruleSeq: _*)
+
+    // Ensure that the all expanded Rules were added to the RuleSet
+    assert(testRuleSet.getRules.length == 2)
+    assert(testRuleSet.getRules.count(r => Seq("Valid_Scan_Price_Rule", "Valid_Cost_Rule").contains(r.ruleName)) == 2)
+    assert(testRuleSet.getRules.count(_.ruleType == RuleType.ValidateBounds) == 2)
+
+  }
+
 }
