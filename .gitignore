@@ -10,3 +10,4 @@ project/target/
 *.DS_Store
 /target/
 /project/build.properties
+/src/main/scala/com/databricks/labs/validation/LocalTest.scala
