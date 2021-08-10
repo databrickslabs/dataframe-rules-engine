@@ -19,7 +19,7 @@ jobs:
         java-version: '8'
         distribution: 'adopt'
     - name: Run tests
-      run: sbt clean test
+      run: sbt coverage test
     - name: Coverage Report
       run: sbt coverageReport
     - name: "Upload coverage to Codecov"
