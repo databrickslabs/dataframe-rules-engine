@@ -93,7 +93,7 @@ class RuleSetTestSuite extends AnyFunSuite with SparkSessionFixture {
     assert(groupedRuleSet.getGroupBys.length == 1)
     assert(groupedRuleSet.getGroupBys.head == "make")
     assert(groupedRuleSet.getRules.length == 2)
-    assert((groupedRuleSet.getRules.map(_.inputRuleName) diff Seq("Valid_Auto_Maker_Rule", "Valid_Auto_Models_Rule")).isEmpty)
+    assert((groupedRuleSet.getRules.map(_.ruleName) diff Seq("Valid_Auto_Maker_Rule", "Valid_Auto_Models_Rule")).isEmpty)
 
     // Ensure a RuleSet can be created with a non-grouped DataFrame
     val nonGroupedRuleSet = RuleSet(testDF, Array(makeLovRule, modelLovRule))
@@ -104,7 +104,7 @@ class RuleSetTestSuite extends AnyFunSuite with SparkSessionFixture {
     // Ensure that the RuleSet properties are set properly
     assert(nonGroupedRuleSet.getGroupBys.isEmpty)
     assert(nonGroupedRuleSet.getRules.length == 2)
-    assert((nonGroupedRuleSet.getRules.map(_.inputRuleName) diff Seq("Valid_Auto_Maker_Rule", "Valid_Auto_Models_Rule")).isEmpty)
+    assert((nonGroupedRuleSet.getRules.map(_.ruleName) diff Seq("Valid_Auto_Maker_Rule", "Valid_Auto_Models_Rule")).isEmpty)
   }
 
   test("A rule set should be created from a DataFrame and list of MinMax rules.") {
@@ -122,8 +122,8 @@ class RuleSetTestSuite extends AnyFunSuite with SparkSessionFixture {
     // Ensure that the RuleSet properties are set properly
     assert(msrpBoundsRuleSet.getGroupBys.isEmpty)
     assert(msrpBoundsRuleSet.getRules.length == 2)
-    assert(Seq("Valid_Auto_MSRP_Rule_min", "Valid_Auto_MSRP_Rule_max").contains(msrpBoundsRuleSet.getRules(0).inputRuleName))
-    assert(Seq("Valid_Auto_MSRP_Rule_min", "Valid_Auto_MSRP_Rule_max").contains(msrpBoundsRuleSet.getRules(1).inputRuleName))
+    assert(Seq("Valid_Auto_MSRP_Rule_min", "Valid_Auto_MSRP_Rule_max").contains(msrpBoundsRuleSet.getRules(0).ruleName))
+    assert(Seq("Valid_Auto_MSRP_Rule_min", "Valid_Auto_MSRP_Rule_max").contains(msrpBoundsRuleSet.getRules(1).ruleName))
 
   }
 
@@ -154,7 +154,7 @@ class RuleSetTestSuite extends AnyFunSuite with SparkSessionFixture {
     // Ensure that the RuleSet properties are set properly
     assert(mergedRuleSet.getRules.length == 4)
     val mergedRuleNames = Seq("Valid_Auto_MSRP_Rule_min", "Valid_Auto_MSRP_Rule_max", "Valid_Auto_Maker_Rule", "Valid_Auto_Models_Rule")
-    assert(mergedRuleSet.getRules.count(r => mergedRuleNames.contains(r.inputRuleName)) == 4)
+    assert(mergedRuleSet.getRules.count(r => mergedRuleNames.contains(r.ruleName)) == 4)
 
     // Ensure groupBy columns are merged properly
     val groupedLovRuleSet = RuleSet(testDF, Array(makeLovRule, modelLovRule), Array("make"))
@@ -162,7 +162,7 @@ class RuleSetTestSuite extends AnyFunSuite with SparkSessionFixture {
     assert(mergedTheOtherWay.getGroupBys.length == 1)
     assert(mergedTheOtherWay.getGroupBys.head == "make")
     assert(mergedTheOtherWay.getDf.exceptAll(testDF).count() == 0)
-    assert(mergedTheOtherWay.getRules.count(r => mergedRuleNames.contains(r.inputRuleName)) == 4)
+    assert(mergedTheOtherWay.getRules.count(r => mergedRuleNames.contains(r.ruleName)) == 4)
 
   }
 

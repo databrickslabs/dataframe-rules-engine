@@ -9,7 +9,7 @@ import org.apache.spark.sql.functions.{array, lit}
  * Definition of a rule
  */
 class Rule(
-            val ruleName: String,
+            private val _ruleName: String,
             val inputColumn: Column,
             val ruleType: RuleType.Value
           ) {
@@ -23,12 +23,11 @@ class Rule(
   private var _implicitBoolean: Boolean = false
   private var _ignoreCase: Boolean = false
   private var _invertMatch: Boolean = false
-  val inputRuleName: String = cleanseRuleName(ruleName)
   val inputColumnName: String = inputColumn.expr.toString().replace("'", "")
 
   override def toString: String = {
     s"""
-       |Rule Name: $inputRuleName
+       |Rule Name: $ruleName
        |Rule Type: $ruleType
        |Rule Is Agg: $isAgg
        |Input Column: ${inputColumn.expr.toString()}
@@ -95,11 +94,11 @@ class Rule(
       inputColumn.expr.children.map(_.prettyName).contains("aggregateexpression")
   }
 
-  def cleanseRuleName(ruleName: String): String = {
-    if (ruleName.contains(" ")) logger.warn("Replacing whitespaces in Rule Name with underscores.")
-    val removedWhitespaceRuleName = ruleName.trim.replaceAll(" ", "_")
+  def ruleName: String = {
+    if (_ruleName.contains(" ")) logger.warn("Replacing whitespaces in Rule Name with underscores.")
+    val removedWhitespaceRuleName = _ruleName.trim.replaceAll(" ", "_")
     val specialCharsPattern = "[^a-zA-z0-9_-]+".r
-    if (specialCharsPattern.findAllIn(ruleName).toSeq.nonEmpty) logger.warn("Removing special characters from Rule Name.")
+    if (specialCharsPattern.findAllIn(_ruleName).toSeq.nonEmpty) logger.warn("Removing special characters from Rule Name.")
     removedWhitespaceRuleName.replaceAll("[^a-zA-Z0-9_-]", "")
   }
 

@@ -649,8 +649,8 @@ class ValidatorTestSuite extends AnyFunSuite with SparkSessionFixture {
 
     // Ensure that there is a single temperature rule failure
     assert(validationResults.summaryReport.count() == 1)
-    assert(whiteSpaceRule.inputRuleName == "Valid_Temperature___Range__Rule")
-    assert(specialCharsRule.inputRuleName == "--sCooling_Rates_nt")
+    assert(whiteSpaceRule.ruleName == "Valid_Temperature___Range__Rule")
+    assert(specialCharsRule.ruleName == "--sCooling_Rates_nt")
 
     // Ensure that the complete report matches the expected output
     assert(validationResults.completeReport.exceptAll(expectedDF).count() == 0, "Expected special char df is not equal to the returned rules report.")
