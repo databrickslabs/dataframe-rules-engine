@@ -10,10 +10,10 @@ class Validator(ruleSet: RuleSet, detailLvl: Int) extends SparkSessionWrapper {
   private val byCols = ruleSet.getGroupBys map col
 
   private def buildFailureReport(df: DataFrame): DataFrame = {
-    val rulesResultCols = ruleSet.getRules.map(r => s"`${r.ruleName}`").mkString(", ")
+    val rulesResultCols = ruleSet.getRules.map(r => s"`${r.inputRuleName}`").mkString(", ")
     val onlyFailedRecords = expr(s"""filter(array($rulesResultCols), results -> !results.passed)""")
     df.withColumn("failed_rules", onlyFailedRecords)
-      .drop(ruleSet.getRules.map(_.ruleName): _*)
+      .drop(ruleSet.getRules.map(_.inputRuleName): _*)
       .filter(size(col("failed_rules")) > 0)
   }
 
@@ -22,36 +22,36 @@ class Validator(ruleSet: RuleSet, detailLvl: Int) extends SparkSessionWrapper {
       rule.ruleType match {
         case RuleType.ValidateBounds =>
           struct(
-            lit(rule.ruleName).alias("ruleName"),
+            lit(rule.inputRuleName).alias("ruleName"),
             (rule.inputColumn > rule.boundaries.lower && rule.inputColumn < rule.boundaries.upper)
               .alias("passed"),
             array(lit(rule.boundaries.lower), lit(rule.boundaries.upper)).cast("string").alias("permitted"),
             rule.inputColumn.cast("string").alias("actual")
-          ).alias(rule.ruleName)
+          ).alias(rule.inputRuleName)
         case RuleType.ValidateNumerics =>
           val ruleExpr = if(rule.invertMatch) not(array_contains(rule.validNumerics, rule.inputColumn)) else array_contains(rule.validNumerics, rule.inputColumn)
           struct(
-            lit(rule.ruleName).alias("ruleName"),
+            lit(rule.inputRuleName).alias("ruleName"),
             ruleExpr.alias("passed"),
             rule.validNumerics.cast("string").alias("permitted"),
             rule.inputColumn.cast("string").alias("actual")
-          ).alias(rule.ruleName)
+          ).alias(rule.inputRuleName)
         case RuleType.ValidateStrings =>
           val ruleValue = if(rule.ignoreCase) lower(rule.inputColumn) else rule.inputColumn
           val ruleExpr = if(rule.invertMatch) not(array_contains(rule.validStrings, ruleValue)) else array_contains(rule.validStrings, ruleValue)
           struct(
-            lit(rule.ruleName).alias("ruleName"),
+            lit(rule.inputRuleName).alias("ruleName"),
             ruleExpr.alias("passed"),
             rule.validStrings.cast("string").alias("permitted"),
             rule.inputColumn.cast("string").alias("actual")
-          ).alias(rule.ruleName)
+          ).alias(rule.inputRuleName)
         case RuleType.ValidateExpr =>
           struct(
-            lit(rule.ruleName).alias("ruleName"),
+            lit(rule.inputRuleName).alias("ruleName"),
             (rule.inputColumn === rule.validExpr).alias("passed"),
             lit(rule.inputColumnName).alias("permitted"),
             rule.inputColumn.cast("string").alias("actual")
-          ).alias(rule.ruleName)
+          ).alias(rule.inputRuleName)
       }
     })
   }
@@ -67,7 +67,7 @@ class Validator(ruleSet: RuleSet, detailLvl: Int) extends SparkSessionWrapper {
       ruleSet.getDf
         .groupBy(byCols: _*)
         .agg(evaluatedRules(ruleSet.getRules).head, evaluatedRules(ruleSet.getRules).tail: _*)
-        .select(byCols ++ (ruleSet.getRules.map(_.ruleName) map col): _*)
+        .select(byCols ++ (ruleSet.getRules.map(_.inputRuleName) map col): _*)
     }
 
     ValidationResults(evaluatedDF, buildFailureReport(evaluatedDF))

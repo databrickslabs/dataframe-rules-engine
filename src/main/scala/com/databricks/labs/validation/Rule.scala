@@ -1,6 +1,7 @@
 package com.databricks.labs.validation
 
 import com.databricks.labs.validation.utils.Structures.Bounds
+import org.apache.log4j.Logger
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.functions.{array, lit}
 
@@ -13,6 +14,8 @@ class Rule(
             val ruleType: RuleType.Value
           ) {
 
+  private val logger: Logger = Logger.getLogger(this.getClass)
+
   private var _boundaries: Bounds = Bounds()
   private var _validExpr: Column = lit(null)
   private var _validNumerics: Column = array(lit(null).cast("double"))
@@ -20,11 +23,12 @@ class Rule(
   private var _implicitBoolean: Boolean = false
   private var _ignoreCase: Boolean = false
   private var _invertMatch: Boolean = false
+  val inputRuleName: String = cleanseRuleName(ruleName)
   val inputColumnName: String = inputColumn.expr.toString().replace("'", "")
 
   override def toString: String = {
     s"""
-       |Rule Name: $ruleName
+       |Rule Name: $inputRuleName
        |Rule Type: $ruleType
        |Rule Is Agg: $isAgg
        |Input Column: ${inputColumn.expr.toString()}
@@ -89,6 +93,14 @@ class Rule(
   def isAgg: Boolean = {
     inputColumn.expr.prettyName == "aggregateexpression" ||
       inputColumn.expr.children.map(_.prettyName).contains("aggregateexpression")
+  }
+
+  def cleanseRuleName(ruleName: String): String = {
+    if (ruleName.contains(" ")) logger.warn("Replacing whitespaces in Rule Name with underscores.")
+    val removedWhitespaceRuleName = ruleName.trim.replaceAll(" ", "_")
+    val specialCharsPattern = "[^a-zA-z0-9_-]+".r
+    if (specialCharsPattern.findAllIn(ruleName).toSeq.nonEmpty) logger.warn("Removing special characters from Rule Name.")
+    removedWhitespaceRuleName.replaceAll("[^a-zA-Z0-9_-]", "")
   }
 
 }

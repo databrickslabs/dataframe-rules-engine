@@ -14,7 +14,7 @@ class RuleTestSuite extends AnyFunSuite with SparkSessionFixture {
     val minMaxRule = Rule("Temperature_MinMax_Rule", col("temperature"), Bounds(34.0, 85.0))
 
     // Ensure that all attributes are set correctly
-    assert(minMaxRule.ruleName == "Temperature_MinMax_Rule", "Rule name is not set as expected.")
+    assert(minMaxRule.inputRuleName == "Temperature_MinMax_Rule", "Rule name is not set as expected.")
     assert(minMaxRule.inputColumnName == "temperature", "Input column name is not set as expected.")
     assert(minMaxRule.ruleType == RuleType.ValidateBounds, "The rule type is not set as expected.")
     assert(!minMaxRule.isImplicitBool, "The rule should not be an implicit boolean expression.")
@@ -32,7 +32,7 @@ class RuleTestSuite extends AnyFunSuite with SparkSessionFixture {
     val coolingBoolRule = Rule("Implicit_Cooling_Rule", col("cooling_bool"))
 
     // Ensure that all attributes are set correctly
-    assert(coolingBoolRule.ruleName == "Implicit_Cooling_Rule", "Rule name is not set as expected.")
+    assert(coolingBoolRule.inputRuleName == "Implicit_Cooling_Rule", "Rule name is not set as expected.")
     assert(coolingBoolRule.inputColumnName == "cooling_bool", "Input column name is not set as expected.")
     assert(coolingBoolRule.ruleType == RuleType.ValidateExpr, "The rule type is not set as expected.")
     assert(coolingBoolRule.isImplicitBool, "The rule should not be an implicit boolean expression.")
@@ -42,7 +42,7 @@ class RuleTestSuite extends AnyFunSuite with SparkSessionFixture {
     val coolingExprRule = Rule("Implicit_Cooling_Expr", col("current_temp") > col("target_temp"))
 
     // Ensure that all attributes are set correctly
-    assert(coolingExprRule.ruleName == "Implicit_Cooling_Expr", "Rule name is not set as expected.")
+    assert(coolingExprRule.inputRuleName == "Implicit_Cooling_Expr", "Rule name is not set as expected.")
     assert(coolingExprRule.inputColumnName == "(current_temp > target_temp)", "Input column name is not set as expected.")
     assert(coolingExprRule.ruleType == RuleType.ValidateExpr, "The rule type is not set as expected.")
     assert(coolingExprRule.isImplicitBool, "The rule should not be an implicit boolean expression.")
@@ -56,7 +56,7 @@ class RuleTestSuite extends AnyFunSuite with SparkSessionFixture {
     val coolingBoolRule = Rule("Thermostat_Cooling_Rule", col("cooling_bool"), (col("current_temp") - col("target_temp")) >= 7.0)
 
     // Ensure that all attributes are set correctly
-    assert(coolingBoolRule.ruleName == "Thermostat_Cooling_Rule", "Rule name is not set as expected.")
+    assert(coolingBoolRule.inputRuleName == "Thermostat_Cooling_Rule", "Rule name is not set as expected.")
     assert(coolingBoolRule.inputColumnName == "cooling_bool", "Input column name is not set as expected.")
     assert(coolingBoolRule.ruleType == RuleType.ValidateExpr, "The rule type is not set as expected.")
     assert(!coolingBoolRule.isImplicitBool, "The rule should not be an implicit boolean expression.")
@@ -70,7 +70,7 @@ class RuleTestSuite extends AnyFunSuite with SparkSessionFixture {
     val heatingRateIntRule = Rule("Heating_Rate_Int_Rule", col("heating_rate"), Array(0, 1, 5, 10, 15))
 
     // Ensure that all attributes are set correctly for Integers
-    assert(heatingRateIntRule.ruleName == "Heating_Rate_Int_Rule", "Rule name is not set as expected.")
+    assert(heatingRateIntRule.inputRuleName == "Heating_Rate_Int_Rule", "Rule name is not set as expected.")
     assert(heatingRateIntRule.inputColumnName == "heating_rate", "Input column name is not set as expected.")
     assert(heatingRateIntRule.ruleType == RuleType.ValidateNumerics, "The rule type is not set as expected.")
     assert(!heatingRateIntRule.isImplicitBool, "The rule should not be an implicit boolean expression.")
@@ -78,7 +78,7 @@ class RuleTestSuite extends AnyFunSuite with SparkSessionFixture {
 
     // Ensure that all attributes are set correctly for Doubles
     val heatingRateDoubleRule = Rule("Heating_Rate_Double_Rule", col("heating_rate"), Array(0.0, 0.1, 0.5, 0.10, 0.15))
-    assert(heatingRateDoubleRule.ruleName == "Heating_Rate_Double_Rule", "Rule name is not set as expected.")
+    assert(heatingRateDoubleRule.inputRuleName == "Heating_Rate_Double_Rule", "Rule name is not set as expected.")
     assert(heatingRateDoubleRule.inputColumnName == "heating_rate", "Input column name is not set as expected.")
     assert(heatingRateDoubleRule.ruleType == RuleType.ValidateNumerics, "The rule type is not set as expected.")
     assert(!heatingRateDoubleRule.isImplicitBool, "The rule should not be an implicit boolean expression.")
@@ -86,7 +86,7 @@ class RuleTestSuite extends AnyFunSuite with SparkSessionFixture {
 
     // Ensure that all attributes are set correctly for Longs
     val heatingRateLongRule = Rule("Heating_Rate_Long_Rule", col("heating_rate"), Array(111111111111111L, 211111111111111L, 311111111111111L))
-    assert(heatingRateLongRule.ruleName == "Heating_Rate_Long_Rule", "Rule name is not set as expected.")
+    assert(heatingRateLongRule.inputRuleName == "Heating_Rate_Long_Rule", "Rule name is not set as expected.")
     assert(heatingRateLongRule.inputColumnName == "heating_rate", "Input column name is not set as expected.")
     assert(heatingRateLongRule.ruleType == RuleType.ValidateNumerics, "The rule type is not set as expected.")
     assert(!heatingRateLongRule.isImplicitBool, "The rule should not be an implicit boolean expression.")
@@ -100,7 +100,7 @@ class RuleTestSuite extends AnyFunSuite with SparkSessionFixture {
     val buildingNameRule = Rule("Building_LOV_Rule", col("site_name"), Array("SiteA", "SiteB", "SiteC"))
 
     // Ensure that all attributes are set correctly for Integers
-    assert(buildingNameRule.ruleName == "Building_LOV_Rule", "Rule name is not set as expected.")
+    assert(buildingNameRule.inputRuleName == "Building_LOV_Rule", "Rule name is not set as expected.")
     assert(buildingNameRule.inputColumnName == "site_name", "Input column name is not set as expected.")
     assert(buildingNameRule.ruleType == RuleType.ValidateStrings, "The rule type is not set as expected.")
     assert(!buildingNameRule.isImplicitBool, "The rule should not be an implicit boolean expression.")
