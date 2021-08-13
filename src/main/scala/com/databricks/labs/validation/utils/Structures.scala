@@ -21,7 +21,7 @@ object Lookups {
 
 object Structures {
 
-  case class Bounds(lower: Double = Double.NegativeInfinity, upper: Double = Double.PositiveInfinity)
+  case class Bounds(lower: Double = Double.NegativeInfinity, upper: Double = Double.PositiveInfinity, inclusive: Boolean = false)
 
   case class MinMaxRuleDef(ruleName: String, column: Column, bounds: Bounds, by: Column*)
 
