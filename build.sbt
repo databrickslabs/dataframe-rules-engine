@@ -21,9 +21,8 @@ publishTo := Some(
     Opts.resolver.sonatypeStaging
 )
 
-libraryDependencies += "org.apache.spark" %% "spark-core" % "3.0.1"
-libraryDependencies += "org.apache.spark" %% "spark-sql" % "3.0.1"
-libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.6"
+libraryDependencies += "org.apache.spark" %% "spark-core" % "3.0.1" % Provided
+libraryDependencies += "org.apache.spark" %% "spark-sql" % "3.0.1" % Provided
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.6" % Test
 
 run in Compile := Defaults.runTask(fullClasspath in Compile, mainClass in(Compile, run), runner in(Compile, run)).evaluated
