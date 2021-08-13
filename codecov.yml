@@ -1,0 +1,7 @@
+ignore:
+  - "src/test/**/*"
+  - "target/**/*"
+  - "images/**/*"
+  - "project/**/*"
+  - ".github/**/*"
+  - "src/main/scala/com/databricks/labs/validation/utils/SparkSessionWrapper.scala"

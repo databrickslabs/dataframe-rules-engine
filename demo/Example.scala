@@ -1,7 +1,7 @@
 package com.databricks.labs.validation
 
-import com.databricks.labs.validation.utils.{Lookups, SparkSessionWrapper}
 import com.databricks.labs.validation.utils.Structures._
+import com.databricks.labs.validation.utils.{Lookups, SparkSessionWrapper}
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.functions._
 
