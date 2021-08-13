@@ -23,11 +23,7 @@ class Validator(ruleSet: RuleSet, detailLvl: Int) extends SparkSessionWrapper {
         case RuleType.ValidateBounds =>
           struct(
             lit(rule.ruleName).alias("ruleName"),
-            if (rule.boundaries.inclusive) { // inclusive boundary
-              rule.inputColumn.between(rule.boundaries.lower, rule.boundaries.upper)
-            } else { // exclusive boundary
-              rule.inputColumn > rule.boundaries.lower && rule.inputColumn < rule.boundaries.upper
-            }.alias("passed"),
+            rule.boundaries.validationLogic(rule.inputColumn).alias("passed"),
             array(lit(rule.boundaries.lower), lit(rule.boundaries.upper)).cast("string").alias("permitted"),
             rule.inputColumn.cast("string").alias("actual")
           ).alias(rule.ruleName)
