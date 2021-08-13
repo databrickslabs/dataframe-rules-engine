@@ -623,19 +623,19 @@ class ValidatorTestSuite extends AnyFunSuite with SparkSessionFixture {
       (2, "iot_thermostat_2", 76.00, 66.00, -10.00, -10.00),
       (3, "iot_thermostat_3", 91.00, 69.00, -20.00, -10.00)
     ).toDF("device id", "device_name", "current temp", "target_temp", "temp_diff", "cooling_rate")
-    val expectedColumns = testDF.columns ++ Seq("Valid_Temperature___Range__Rule", "--sCooling_Rates_nt")
+    val expectedColumns = testDF.columns ++ Seq("Valid_Temperature___Range__Rule", "__________--_____sCooling_Rates__________n_t_____")
     val expectedDF = Seq(
       (1, "iot_thermostat_1", 84.00, 74.00, -10.00, -10.00,
         ValidationValue("Valid_Temperature___Range__Rule", passed=true, "[57.0, 85.0]", "84.0"),
-        ValidationValue("--sCooling_Rates_nt", passed=true, "[-20.0, -1.0]", "-10.0")
+        ValidationValue("__________--_____sCooling_Rates__________n_t_____", passed=true, "[-20.0, -1.0]", "-10.0")
       ),
       (2, "iot_thermostat_2", 76.00, 66.00, -10.00, -10.00,
         ValidationValue("Valid_Temperature___Range__Rule", passed=true, "[57.0, 85.0]", "76.0"),
-        ValidationValue("--sCooling_Rates_nt", passed=true, "[-20.0, -1.0]", "-10.0")
+        ValidationValue("__________--_____sCooling_Rates__________n_t_____", passed=true, "[-20.0, -1.0]", "-10.0")
       ),
       (3, "iot_thermostat_3", 91.00, 69.00, -20.00, -10.00,
         ValidationValue("Valid_Temperature___Range__Rule", passed=false, "[57.0, 85.0]", "91.0"),
-        ValidationValue("--sCooling_Rates_nt", passed=true, "[-20.0, -1.0]", "-10.0")
+        ValidationValue("__________--_____sCooling_Rates__________n_t_____", passed=true, "[-20.0, -1.0]", "-10.0")
 
       )
     ).toDF(expectedColumns: _*)
@@ -650,7 +650,7 @@ class ValidatorTestSuite extends AnyFunSuite with SparkSessionFixture {
     // Ensure that there is a single temperature rule failure
     assert(validationResults.summaryReport.count() == 1)
     assert(whiteSpaceRule.ruleName == "Valid_Temperature___Range__Rule")
-    assert(specialCharsRule.ruleName == "--sCooling_Rates_nt")
+    assert(specialCharsRule.ruleName == "__________--_____sCooling_Rates__________n_t_____")
 
     // Ensure that the complete report matches the expected output
     assert(validationResults.completeReport.exceptAll(expectedDF).count() == 0, "Expected special char df is not equal to the returned rules report.")

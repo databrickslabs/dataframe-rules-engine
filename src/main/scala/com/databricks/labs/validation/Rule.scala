@@ -98,8 +98,8 @@ class Rule(
     if (_ruleName.contains(" ")) logger.warn("Replacing whitespaces in Rule Name with underscores.")
     val removedWhitespaceRuleName = _ruleName.trim.replaceAll(" ", "_")
     val specialCharsPattern = "[^a-zA-z0-9_-]+".r
-    if (specialCharsPattern.findAllIn(_ruleName).toSeq.nonEmpty) logger.warn("Removing special characters from Rule Name.")
-    removedWhitespaceRuleName.replaceAll("[^a-zA-Z0-9_-]", "")
+    if (specialCharsPattern.findAllIn(_ruleName).toSeq.nonEmpty) logger.warn("Replacing special characters in Rule Name with underscores.")
+    removedWhitespaceRuleName.replaceAll("[^a-zA-Z0-9_-]", "_")
   }
 
 }
