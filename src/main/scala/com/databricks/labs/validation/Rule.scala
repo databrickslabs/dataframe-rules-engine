@@ -1,6 +1,7 @@
 package com.databricks.labs.validation
 
 import com.databricks.labs.validation.utils.Structures.Bounds
+import org.apache.log4j.Logger
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.functions.{array, lit}
 
@@ -8,10 +9,12 @@ import org.apache.spark.sql.functions.{array, lit}
  * Definition of a rule
  */
 class Rule(
-            val ruleName: String,
+            private val _ruleName: String,
             val inputColumn: Column,
             val ruleType: RuleType.Value
           ) {
+
+  private val logger: Logger = Logger.getLogger(this.getClass)
 
   private var _boundaries: Bounds = Bounds()
   private var _validExpr: Column = lit(null)
@@ -20,6 +23,7 @@ class Rule(
   private var _implicitBoolean: Boolean = false
   private var _ignoreCase: Boolean = false
   private var _invertMatch: Boolean = false
+  private val inputRuleName: String = setRuleName(_ruleName)
   val inputColumnName: String = inputColumn.expr.toString().replace("'", "")
 
   override def toString: String = {
@@ -72,6 +76,23 @@ class Rule(
     this
   }
 
+  private def setRuleName(ruleName: String): String = {
+    val removedWhitespaceRuleName = ruleName.trim.replaceAll(" ", "_")
+    val whitespaceRemovalWarning = s"Converting whitespaces to underscores in Rule's name:\n '$ruleName' --> '$removedWhitespaceRuleName'\n"
+    if (_ruleName.contains(" ")) {
+      logger.warn(whitespaceRemovalWarning)
+      println(whitespaceRemovalWarning)
+    }
+    val specialCharsPattern = "[^a-zA-z0-9_-]+".r
+    val removedSpecialCharsRuleName = removedWhitespaceRuleName.replaceAll("[^a-zA-Z0-9_-]", "_")
+    val specialCharacterRemovalWarning = s"Converting special characters to underscores in Rule's name:\n '$removedWhitespaceRuleName' --> '$removedSpecialCharsRuleName'\n"
+    if (specialCharsPattern.findAllIn(removedWhitespaceRuleName).toSeq.nonEmpty) {
+      logger.warn(specialCharacterRemovalWarning)
+      println(specialCharacterRemovalWarning)
+    }
+    removedSpecialCharsRuleName
+  }
+
   def boundaries: Bounds = _boundaries
 
   def validNumerics: Column = _validNumerics
@@ -85,6 +106,8 @@ class Rule(
   def ignoreCase: Boolean = _ignoreCase
 
   def invertMatch: Boolean = _invertMatch
+
+  def ruleName: String = inputRuleName
 
   def isAgg: Boolean = {
     inputColumn.expr.prettyName == "aggregateexpression" ||
