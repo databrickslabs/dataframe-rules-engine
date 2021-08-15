@@ -1,52 +1,43 @@
 package com.databricks.labs.validation
 
-import java.util.UUID
-
 import com.databricks.labs.validation.utils.Structures.Bounds
+import org.apache.log4j.Logger
 import org.apache.spark.sql.Column
+import org.apache.spark.sql.functions.{array, lit}
 
 /**
  * Definition of a rule
  */
-class Rule {
+class Rule(
+            private val _ruleName: String,
+            val inputColumn: Column,
+            val ruleType: RuleType.Value
+          ) {
 
-  private var _ruleName: String = _
-  private var _canonicalCol: Column = _
-  private var _canonicalColName: String = _
-  private var _inputCol: Column = _
-  private var _inputColName: String = _
-  private var _calculatedColumn: Column = _
-  private var _boundaries: Bounds = _
-  private var _validNumerics: Array[Double] = _
-  private var _validStrings: Array[String] = _
-  private var _dateTimeLogic: Column = _
-  private var _ruleType: RuleType.Value = _
-  private var _isAgg: Boolean = _
+  private val logger: Logger = Logger.getLogger(this.getClass)
 
-  private def setRuleName(value: String): this.type = {
-    _ruleName = value
-    this
-  }
+  private var _boundaries: Bounds = Bounds()
+  private var _validExpr: Column = lit(null)
+  private var _validNumerics: Column = array(lit(null).cast("double"))
+  private var _validStrings: Column = array(lit(null).cast("string"))
+  private var _implicitBoolean: Boolean = false
+  private var _ignoreCase: Boolean = false
+  private var _invertMatch: Boolean = false
+  private val inputRuleName: String = setRuleName(_ruleName)
+  val inputColumnName: String = inputColumn.expr.toString().replace("'", "")
 
-  /**
-   * Allows for use of canonical naming and rule identification. Not necessary as of version 0.1 but
-   * can be used for future use cases
-   *
-   * @param value input column from user
-   * @return Rule
-   */
-  private[validation] def setColumn(value: Column): this.type = {
-    _inputCol = value
-    _inputColName = _inputCol.expr.toString().replace("'", "")
-    val cleanUUID = UUID.randomUUID().toString.replaceAll("-", "")
-    _canonicalColName = s"${_inputColName}_$cleanUUID"
-    _canonicalCol = _inputCol.alias(_canonicalColName)
-    _calculatedColumn = _inputCol
-    this
-  }
-
-  private[validation] def setCalculatedColumn(value: Column): Unit = {
-    _calculatedColumn = value
+  override def toString: String = {
+    s"""
+       |Rule Name: $ruleName
+       |Rule Type: $ruleType
+       |Rule Is Agg: $isAgg
+       |Input Column: ${inputColumn.expr.toString()}
+       |Input Column Name: $inputColumnName
+       |Boundaries: ${boundaries.lower} - ${boundaries.upper}
+       |Valid Numerics: ${validNumerics.expr.toString()}
+       |Valid Strings: ${validStrings.expr.toString()}
+       |Implicit Bool: ${_implicitBoolean}
+       |""".stripMargin
   }
 
   private def setBoundaries(value: Bounds): this.type = {
@@ -55,53 +46,73 @@ class Rule {
   }
 
   private def setValidNumerics(value: Array[Double]): this.type = {
-    _validNumerics = value
+    _validNumerics = lit(value)
     this
   }
 
-  private def setValidStrings(value: Array[String]): this.type = {
-    _validStrings = value
+  private def setValidStrings(value: Array[String], ignoreCase: Boolean): this.type = {
+    _validStrings = if(ignoreCase) lit(value.map(_.toLowerCase)) else lit(value)
+    inputColumn.expr.children.map(_.prettyName)
     this
   }
 
-  private def setDateTimeLogic(value: Column): this.type = {
-    _dateTimeLogic = value
+  private def setValidExpr(value: Column): this.type = {
+    _validExpr = lit(value)
     this
   }
 
-  private def setRuleType(value: RuleType.Value): this.type = {
-    _ruleType = value
+  private def setImplicitBool(value: Boolean): this.type = {
+    _implicitBoolean = value
     this
   }
 
-  private[validation] def setIsAgg: this.type = {
-    _isAgg = inputColumn.expr.prettyName == "aggregateexpression"
+  private def setIgnoreCase(value: Boolean): this.type = {
+    _ignoreCase = value
     this
   }
 
-  def ruleName: String = _ruleName
+  private def setInvertMatch(value: Boolean): this.type = {
+    _invertMatch = value
+    this
+  }
 
-  def inputColumn: Column = _inputCol
-
-  def inputColumnName: String = _inputColName
-
-  def canonicalCol: Column = _canonicalCol
-
-  def canonicalColName: String = _canonicalColName
-
-  private[validation] def calculatedColumn: Column = _calculatedColumn
+  private def setRuleName(ruleName: String): String = {
+    val removedWhitespaceRuleName = ruleName.trim.replaceAll(" ", "_")
+    val whitespaceRemovalWarning = s"Converting whitespaces to underscores in Rule's name:\n '$ruleName' --> '$removedWhitespaceRuleName'\n"
+    if (_ruleName.contains(" ")) {
+      logger.warn(whitespaceRemovalWarning)
+      println(whitespaceRemovalWarning)
+    }
+    val specialCharsPattern = "[^a-zA-z0-9_-]+".r
+    val removedSpecialCharsRuleName = removedWhitespaceRuleName.replaceAll("[^a-zA-Z0-9_-]", "_")
+    val specialCharacterRemovalWarning = s"Converting special characters to underscores in Rule's name:\n '$removedWhitespaceRuleName' --> '$removedSpecialCharsRuleName'\n"
+    if (specialCharsPattern.findAllIn(removedWhitespaceRuleName).toSeq.nonEmpty) {
+      logger.warn(specialCharacterRemovalWarning)
+      println(specialCharacterRemovalWarning)
+    }
+    removedSpecialCharsRuleName
+  }
 
   def boundaries: Bounds = _boundaries
 
-  def validNumerics: Array[Double] = _validNumerics
+  def validNumerics: Column = _validNumerics
 
-  def validStrings: Array[String] = _validStrings
+  def validStrings: Column = _validStrings
 
-  def dateTimeLogic: Column = _dateTimeLogic
+  def validExpr: Column = _validExpr
 
-  def ruleType: RuleType.Value = _ruleType
+  def isImplicitBool: Boolean = _implicitBoolean
 
-  private[validation] def isAgg: Boolean = _isAgg
+  def ignoreCase: Boolean = _ignoreCase
+
+  def invertMatch: Boolean = _invertMatch
+
+  def ruleName: String = inputRuleName
+
+  def isAgg: Boolean = {
+    inputColumn.expr.prettyName == "aggregateexpression" ||
+      inputColumn.expr.children.map(_.prettyName).contains("aggregateexpression")
+  }
 
 }
 
@@ -117,12 +128,38 @@ object Rule {
              boundaries: Bounds
            ): Rule = {
 
-    new Rule()
-      .setRuleName(ruleName)
-      .setColumn(column)
+    new Rule(ruleName, column, RuleType.ValidateBounds)
       .setBoundaries(boundaries)
-      .setRuleType(RuleType.ValidateBounds)
-      .setIsAgg
+  }
+
+  def apply(
+             ruleName: String,
+             column: Column
+           ): Rule = {
+      apply(ruleName, column, lit(true))
+        .setImplicitBool(true)
+  }
+
+  def apply(
+             ruleName: String,
+             column: Column,
+             validExpr: Column
+           ): Rule = {
+
+    new Rule(ruleName, column, RuleType.ValidateExpr)
+      .setValidExpr(validExpr)
+  }
+
+  def apply(
+             ruleName: String,
+             column: Column,
+             validNumerics: Array[Double],
+             invertMatch: Boolean
+           ): Rule = {
+
+    new Rule(ruleName, column, RuleType.ValidateNumerics)
+      .setValidNumerics(validNumerics)
+      .setInvertMatch(invertMatch)
   }
 
   def apply(
@@ -131,12 +168,21 @@ object Rule {
              validNumerics: Array[Double]
            ): Rule = {
 
-    new Rule()
-      .setRuleName(ruleName)
-      .setColumn(column)
+    new Rule(ruleName, column, RuleType.ValidateNumerics)
       .setValidNumerics(validNumerics)
-      .setRuleType(RuleType.ValidateNumerics)
-      .setIsAgg
+      .setInvertMatch(false)
+  }
+
+  def apply(
+             ruleName: String,
+             column: Column,
+             validNumerics: Array[Long],
+             invertMatch: Boolean
+           ): Rule = {
+
+    new Rule(ruleName, column, RuleType.ValidateNumerics)
+      .setValidNumerics(validNumerics.map(_.toString.toDouble))
+      .setInvertMatch(invertMatch)
   }
 
   def apply(
@@ -145,12 +191,21 @@ object Rule {
              validNumerics: Array[Long]
            ): Rule = {
 
-    new Rule()
-      .setRuleName(ruleName)
-      .setColumn(column)
+    new Rule(ruleName, column, RuleType.ValidateNumerics)
       .setValidNumerics(validNumerics.map(_.toString.toDouble))
-      .setRuleType(RuleType.ValidateNumerics)
-      .setIsAgg
+      .setInvertMatch(false)
+  }
+
+  def apply(
+             ruleName: String,
+             column: Column,
+             validNumerics: Array[Int],
+             invertMatch: Boolean
+           ): Rule = {
+
+    new Rule(ruleName, column, RuleType.ValidateNumerics)
+      .setValidNumerics(validNumerics.map(_.toString.toDouble))
+      .setInvertMatch(invertMatch)
   }
 
   def apply(
@@ -159,51 +214,23 @@ object Rule {
              validNumerics: Array[Int]
            ): Rule = {
 
-    new Rule()
-      .setRuleName(ruleName)
-      .setColumn(column)
+    new Rule(ruleName, column, RuleType.ValidateNumerics)
       .setValidNumerics(validNumerics.map(_.toString.toDouble))
-      .setRuleType(RuleType.ValidateNumerics)
-      .setIsAgg
+      .setInvertMatch(false)
   }
 
   def apply(
              ruleName: String,
              column: Column,
-             validStrings: Array[String]
+             validStrings: Array[String],
+             ignoreCase: Boolean = false,
+             invertMatch: Boolean = false
            ): Rule = {
 
-    new Rule()
-      .setRuleName(ruleName)
-      .setColumn(column)
-      .setValidStrings(validStrings)
-      .setRuleType(RuleType.ValidateStrings)
-      .setIsAgg
+    new Rule(ruleName, column, RuleType.ValidateStrings)
+      .setValidStrings(validStrings, ignoreCase)
+      .setIgnoreCase(ignoreCase)
+      .setInvertMatch(invertMatch)
   }
-
-  /**
-   * TODO -- Implement Date/Time Logic for:
-   * Column Type (i.e. current_timestamp and current_date)
-   * java.util.Date
-   * Validated strings compatible with Spark
-   *
-   * Additional logic can be added to extend functionality
-   */
-
-  //  def apply(
-  //             ruleName: String,
-  //             column: Column,
-  //             dateTimeLogic: ???,
-  //           ): Rule = {
-  //
-  //    new Rule()
-  //      .setRuleName(ruleName)
-  //      .setColumn(column)
-  //      .setAggFunc(aggFunc)
-  //      .setAlias(alias)
-  //      .setDateTimeLogic(dateTimeLogic)
-  //      .setRuleType("dateTime")
-  //      .setByCols(by)
-  //  }
 
 }
