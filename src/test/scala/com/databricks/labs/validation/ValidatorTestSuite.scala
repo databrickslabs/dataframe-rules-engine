@@ -92,6 +92,40 @@ class ValidatorTestSuite extends AnyFunSuite with SparkSessionFixture {
     assert(validationResults.summaryReport.count() == 0)
   }
 
+  test("There should be no rule failures for inclusive boundary rules.") {
+    val testDF = Seq(
+      (1001, 1.00, 2.55),
+      (1002, 4.25, 5.55),
+      (1003, 7.35, 8.99),
+      (1003, 5.00, 7.99)
+    ).toDF("sku", "retail_price", "scan_price")
+
+    // Ensure upperInclusive boundaries can be validated
+    val scanPriceRule = MinMaxRuleDef("Scan_Price_Rule", col("scan_price"), Bounds(0.0, 8.99, upperInclusive = true))
+    val scanPriceRuleSet = RuleSet(testDF).addMinMaxRules(scanPriceRule)
+    val scanPriceResults = scanPriceRuleSet.validate()
+    assert(!scanPriceRule.bounds.lowerInclusive)
+    assert(scanPriceRule.bounds.upperInclusive)
+    assert(scanPriceRule.bounds.lower == 0.0)
+    assert(scanPriceRule.bounds.upper == 8.99)
+    assert(scanPriceResults.summaryReport.count() == 0)
+
+    // Ensure that both lowerInclusive and upperInclusive boundaries can be validated
+    val retailPriceRule = Rule("Retail_Price_Rule", col("retail_price"), Bounds(1.0, 7.35, lowerInclusive = true, upperInclusive = true))
+    val retailPriceRuleSet = RuleSet(testDF).add(retailPriceRule)
+    val retailPriceResults = retailPriceRuleSet.validate()
+    assert(retailPriceRule.boundaries.lowerInclusive)
+    assert(retailPriceRule.boundaries.upperInclusive)
+    assert(retailPriceRule.boundaries.lower == 1.0)
+    assert(retailPriceRule.boundaries.upper == 7.35)
+    assert(retailPriceResults.summaryReport.count() == 0)
+
+    // Ensure that inclusive boundaries can be applied to a grouped DataFrame
+    val groupedRuleSet = RuleSet(testDF, Array("sku", "retail_price")).add(retailPriceRule)
+    val groupedValidationResults = groupedRuleSet.validate()
+    assert(groupedValidationResults.summaryReport.count() == 0)
+  }
+
   test("The input rule should have 3 invalid count for MinMax_Scan_Price_Minus_Retail_Price_min and max for failing complex type.") {
     val testDF = Seq(
       (1, 2, 3),
