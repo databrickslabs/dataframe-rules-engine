@@ -27,8 +27,8 @@ object Structures {
                      lowerInclusive: Boolean = false,
                      upperInclusive: Boolean = false) {
     def validationLogic(c: Column): Column = {
-      val lowerLogic = if (lowerInclusive) c <= lower else c < lower
-      val upperLogic = if (upperInclusive) c >= upper else c > upper
+      val lowerLogic = if (lowerInclusive) c >= lower else c > lower
+      val upperLogic = if (upperInclusive) c <= upper else c < upper
       lowerLogic && upperLogic
     }
   }
