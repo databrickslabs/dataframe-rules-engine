@@ -532,9 +532,9 @@ class ValidatorTestSuite extends AnyFunSuite with SparkSessionFixture {
 
     val expectedColumns = testDF.columns ++ Seq("TemperatureDiffExpressionRule")
     val expectedDF = Seq(
-      (1, "iot_thermostat_1", 84.00, 74.00, ValidationValue("TemperatureDiffExpressionRule", passed = true, "(abs((current_temp - target_temp)) < 50.0)", "true")),
-      (2, "iot_thermostat_2", 67.05, 72.00, ValidationValue("TemperatureDiffExpressionRule", passed = true, "(abs((current_temp - target_temp)) < 50.0)", "true")),
-      (3, "iot_thermostat_3", 91.14, 76.00, ValidationValue("TemperatureDiffExpressionRule", passed = true, "(abs((current_temp - target_temp)) < 50.0)", "true"))
+      (1, "iot_thermostat_1", 84.00, 74.00, ValidationValue("TemperatureDiffExpressionRule", passed = true, "true", "true")),
+      (2, "iot_thermostat_2", 67.05, 72.00, ValidationValue("TemperatureDiffExpressionRule", passed = true, "true", "true")),
+      (3, "iot_thermostat_3", 91.14, 76.00, ValidationValue("TemperatureDiffExpressionRule", passed = true, "true", "true"))
     ).toDF(expectedColumns: _*)
 
     val exprRuleSet = RuleSet(testDF)
@@ -565,13 +565,13 @@ class ValidatorTestSuite extends AnyFunSuite with SparkSessionFixture {
     val expectedColumns = testDF.columns ++ Seq("ImplicitCoolingExpressionRule")
     val expectedDF = Seq(
       (1, "iot_thermostat_1", 84, 74, -10, -10,
-        ValidationValue("CoolingExpressionRule", passed = true, "abs(cooling_rate)", "10.0")
+        ValidationValue("CoolingExpressionRule", passed = true, "10.0", "10.0")
       ),
       (2, "iot_thermostat_2", 76, 66, -10, -10,
-        ValidationValue("CoolingExpressionRule", passed = true, "abs(cooling_rate)", "10.0")
+        ValidationValue("CoolingExpressionRule", passed = true, "10.0", "10.0")
       ),
       (3, "iot_thermostat_3", 91, 69, -20, -10,
-        ValidationValue("CoolingExpressionRule", passed = false, "abs(cooling_rate)", "10.0")
+        ValidationValue("CoolingExpressionRule", passed = false, "10.0", "10.0")
       )
     ).toDF(expectedColumns: _*)
 
