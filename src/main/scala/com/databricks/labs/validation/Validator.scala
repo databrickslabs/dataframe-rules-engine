@@ -48,7 +48,7 @@ class Validator(ruleSet: RuleSet, detailLvl: Int) extends SparkSessionWrapper {
           struct(
             lit(rule.ruleName).alias("ruleName"),
             (rule.inputColumn === rule.validExpr).alias("passed"),
-            lit(rule.inputColumnName).alias("permitted"),
+            rule.inputColumn.cast("string").alias("permitted"),
             rule.inputColumn.cast("string").alias("actual")
           ).alias(rule.ruleName)
       }
