@@ -1,7 +1,6 @@
 package com.databricks.labs.validation.utils
 
 import com.databricks.labs.validation.Rule
-import com.sun.javafx.binding.SelectBinding.AsInteger
 import org.apache.spark.sql.{Column, DataFrame}
 
 /**
@@ -23,8 +22,8 @@ object Lookups {
 object Structures {
 
   case class Bounds(
-                     val lower: Double = Double.NegativeInfinity,
-                     val upper: Double = Double.PositiveInfinity,
+                     lower: Double = Double.NegativeInfinity,
+                     upper: Double = Double.PositiveInfinity,
                      lowerInclusive: Boolean = false,
                      upperInclusive: Boolean = false) {
     def validationLogic(c: Column): Column = {
@@ -34,13 +33,9 @@ object Structures {
       }
   }
 
-
-
-
   case class MinMaxRuleDef(ruleName: String, column: Column, bounds: Bounds, by: Column*)
 
   case class ValidationResults(completeReport: DataFrame, summaryReport: DataFrame)
-
 
   private[validation] class ValidationException(s: String) extends Exception(s) {}
 
@@ -48,7 +43,5 @@ object Structures {
     val msg: String = s"RULE VALIDATION FAILED: ${r.toString}"
     throw new ValidationException(msg)
   }
-
-
 
 }
