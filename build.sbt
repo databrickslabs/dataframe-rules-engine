@@ -25,6 +25,15 @@ libraryDependencies += "org.apache.spark" %% "spark-core" % "3.0.1" % Provided
 libraryDependencies += "org.apache.spark" %% "spark-sql" % "3.0.1" % Provided
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.6" % Test
 
+
+val circeVersion = "0.14.1"
+
+libraryDependencies ++= Seq(
+  "io.circe" %% "circe-core",
+  "io.circe" %% "circe-generic",
+  "io.circe" %% "circe-parser"
+).map(_ % circeVersion)
+
 run in Compile := Defaults.runTask(fullClasspath in Compile, mainClass in(Compile, run), runner in(Compile, run)).evaluated
 runMain in Compile := Defaults.runMainTask(fullClasspath in Compile, runner in(Compile, run)).evaluated
 

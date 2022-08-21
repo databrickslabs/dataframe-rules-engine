@@ -2,6 +2,8 @@
 *.iml
 #local spark context data from unit tests
 spark-warehouse/
+#scala worksheets
+*.sc
 
 #Build dirctory for maven/sbt
 target/
@@ -11,3 +13,4 @@ project/target/
 /target/
 /project/build.properties
 /src/main/scala/com/databricks/labs/validation/LocalTest.scala
+.bsp/sbt.json

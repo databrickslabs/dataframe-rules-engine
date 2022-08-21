@@ -30,7 +30,7 @@ object Structures {
       val lowerLogic = if (lowerInclusive) c >= lower else c > lower
       val upperLogic = if (upperInclusive) c <= upper else c < upper
       lowerLogic && upperLogic
-    }
+      }
   }
 
   case class MinMaxRuleDef(ruleName: String, column: Column, bounds: Bounds, by: Column*)

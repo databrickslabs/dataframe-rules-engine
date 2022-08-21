@@ -243,6 +243,18 @@ val specializedRules = Array(
 )
 RuleSet(df, by = "store").add(specializedRules)
 ```
+
+## List of Rules as JSON
+An array of list of rules can be initialised from an external file containing valid json
+Pass the Json as String as following 
+```scala
+val jsonParserInstance = new JsonRuleParser()
+val rulesArray = jsonParserInstance.parseRules(jsonString)
+```
+The Array of Rules can then be used to in your Rule Set
+Note: Currently this interface does not support MinMaxRule initialisation but will
+be added in the next iteration
+
 Common Real World Example
 ```scala
 case class GlobalRules(regionID: Int, bu: String, subOrg: String, rules: Array[Rule]*)

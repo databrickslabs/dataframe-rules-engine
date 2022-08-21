@@ -1,0 +1,53 @@
+[
+  {
+    "ruleName":"ImplicitCoolingExpr",
+    "column":"booleanisithot"
+  },
+  {
+    "ruleName":"HeatingRateIntRulewith2Bounds",
+    "column":"heatingrate-coolingrate",
+    "Bounds":{
+      "lower":"0.01",
+      "upper":"1000.0",
+      "lowerInclusive" : true,
+      "upperInclusive" : true
+    }
+  },
+  {
+    "ruleName":"HeatingRateIntRulewith1bounds",
+    "column":"heatingrate-coolingrate",
+    "Bounds":{
+      "lower":"0.01",
+      "upper":"1000.0",
+      "lowerInclusive" : true
+    }
+  },
+  {
+    "ruleName":"HeatingRateIntRulewithCategoryLookup",
+    "column":"heatingrate-coolingrate",
+    "validString":["Good,Bad"]
+  },
+  {
+    "ruleName":"HeatingRateIntRulewithCategoryLookupIgnorecase",
+    "column":"heatingrate-coolingrate",
+    "validString":["Good,Bad"],
+    "ignoreCase":true
+  },
+  {
+    "ruleName":"HeatingRateIntRulewithCategoryLookupInvertmatch",
+    "column":"heatingrate-coolingrate",
+    "validString":["Good,Bad"],
+    "invertMatch":true
+  },
+  {
+    "ruleName":"HeatingRateIntRulewithCategoryLookupInt",
+    "column":"heatingrate-coolingrate",
+    "validNumerics":[1,10,100,1000]
+  },
+  {
+    "ruleName":"HeatingRateIntRulewithCategoryLookupIntInvertTrue",
+    "column":"heatingrate-coolingrate",
+    "validNumerics":[1,10,100,1000],
+    "invertMatch":true
+  }
+]
