@@ -99,11 +99,11 @@ class RuleSet extends SparkSessionWrapper {
   }
 
   /**
-    * add an expanded sequence of rules
-    *
-    * @param rules expanded Rules sequence
-    * @return RuleSet
-    */
+   * add an expanded sequence of rules
+   *
+   * @param rules expanded Rules sequence
+   * @return RuleSet
+   */
   def add(rules: Rule*): this.type = {
     rules.foreach(rule => _rules.append(rule))
     this
@@ -121,11 +121,11 @@ class RuleSet extends SparkSessionWrapper {
   }
 
   /**
-    * Merge two rule sets by adding one rule set to another
-    *
-    * @param ruleSet RuleSet to be added
-    * @return RuleSet
-    */
+   * Merge two rule sets by adding one rule set to another
+   *
+   * @param ruleSet RuleSet to be added
+   * @return RuleSet
+   */
   def add(ruleSet: RuleSet): RuleSet = {
     val addtnlGroupBys = ruleSet.getGroupBys diff this.getGroupBys
     val mergedGroupBys = this.getGroupBys ++ addtnlGroupBys
@@ -166,76 +166,84 @@ class RuleSet extends SparkSessionWrapper {
 
     if (nonBoolImplicits.nonEmpty) throw new ValidationException(
       "Implicit, expression based rules must evaluate to true/false. The following rules could not be confirmed " +
-      s"to be boolean: \n ${nonBoolImplicits.map(_.name).mkString(", ")}.\nTypes Found: " +
+        s"to be boolean: \n ${nonBoolImplicits.map(_.name).mkString(", ")}.\nTypes Found: " +
         s"${nonBoolImplicits.map(_.dataType.typeName).mkString(", ")}")
+
+  }
+
+  /**
+   * Call the action once all rules have been applied
+   *
+   * @param detailLevel -- For Future -- Perhaps faster way to just return true/false without
+   *                    processing everything and returning a report. For big data sets, perhaps run samples
+   *                    looking for invalids? Not sure how much faster and/or what the break-even would be
+   * @return Tuple of Dataframe report and final boolean of whether all rules were passed
+   */
+  def validate (detailLevel: Int = 1): ValidationResults = {
+    validateRules()
+    Validator(this, detailLevel).validate
+  }
+
+  def getCompleteReport(): DataFrame = {
+    validate(1).completeReport
+  }
+
+  def getSummaryReport(): DataFrame = {
+    validate(1).summaryReport
+  }
 
 }
 
-/**
- * Call the action once all rules have been applied
- *
- * @param detailLevel -- For Future -- Perhaps faster way to just return true/false without
- *                    processing everything and returning a report. For big data sets, perhaps run samples
- *                    looking for invalids? Not sure how much faster and/or what the break-even would be
- * @return Tuple of Dataframe report and final boolean of whether all rules were passed
- */
-def validate (detailLevel: Int = 1): ValidationResults = {
-  validateRules ()
-  Validator (this, detailLevel).validate
+object RuleSet {
+
+  /**
+   * Accepts DataFrame - Rules can be calculated for grouped DFs or non-grouped but not at the same time.
+   * Either append rule[s] at call or via builder pattern
+   */
+
+  def apply(df: DataFrame): RuleSet = {
+    new RuleSet().setDF(df)
   }
 
+  def apply(df: DataFrame, by: Array[String]): RuleSet = {
+    new RuleSet().setDF(df)
+      .setGroupByCols(by)
   }
 
-  object RuleSet {
-
-    /**
-     * Accepts DataFrame - Rules can be calculated for grouped DFs or non-grouped but not at the same time.
-     * Either append rule[s] at call or via builder pattern
-     */
-
-    def apply(df: DataFrame): RuleSet = {
+  def apply(df: DataFrame, by: String): RuleSet = {
+    if (by == "*") apply(df, df.columns) else {
       new RuleSet().setDF(df)
+        .setGroupByCols(Array(by))
     }
-
-    def apply(df: DataFrame, by: Array[String]): RuleSet = {
-      new RuleSet().setDF(df)
-        .setGroupByCols(by)
-    }
-
-    def apply(df: DataFrame, by: String): RuleSet = {
-      if (by == "*") apply(df, df.columns) else {
-        new RuleSet().setDF(df)
-          .setGroupByCols(Array(by))
-      }
-    }
-
-    def apply(df: DataFrame, rules: Seq[Rule], by: Seq[String] = Seq.empty[String]): RuleSet = {
-      new RuleSet().setDF(df)
-        .setGroupByCols(by)
-        .add(rules)
-    }
-
-    def apply(df: DataFrame, rules: Rule*): RuleSet = {
-      new RuleSet().setDF(df)
-        .add(rules)
-    }
-
-    /**
-     * Generates two rules for each minmax definition one for the lower and one for the upper
-     * Only valid for Bounds rule types
-     *
-     * @param minMaxRuleDefs One or many minmax definitions as defined in Structures
-     *                       Defined as case class to ensure proper usage
-     * @return Array[Rule] that can be added to the RuleSet
-     */
-    def generateMinMaxRules(minMaxRuleDefs: MinMaxRuleDef*): Array[Rule] = {
-
-      minMaxRuleDefs.flatMap(ruleDef => {
-        Seq(
-          Rule(s"${ruleDef.ruleName}_min", min(ruleDef.column), ruleDef.bounds),
-          Rule(s"${ruleDef.ruleName}_max", max(ruleDef.column), ruleDef.bounds)
-        )
-      }).toArray
-    }
-
   }
+
+  def apply(df: DataFrame, rules: Seq[Rule], by: Seq[String] = Seq.empty[String]): RuleSet = {
+    new RuleSet().setDF(df)
+      .setGroupByCols(by)
+      .add(rules)
+  }
+
+  def apply(df: DataFrame, rules: Rule*): RuleSet = {
+    new RuleSet().setDF(df)
+      .add(rules)
+  }
+
+  /**
+   * Generates two rules for each minmax definition one for the lower and one for the upper
+   * Only valid for Bounds rule types
+   *
+   * @param minMaxRuleDefs One or many minmax definitions as defined in Structures
+   *                       Defined as case class to ensure proper usage
+   * @return Array[Rule] that can be added to the RuleSet
+   */
+  def generateMinMaxRules(minMaxRuleDefs: MinMaxRuleDef*): Array[Rule] = {
+
+    minMaxRuleDefs.flatMap(ruleDef => {
+      Seq(
+        Rule(s"${ruleDef.ruleName}_min", min(ruleDef.column), ruleDef.bounds),
+        Rule(s"${ruleDef.ruleName}_max", max(ruleDef.column), ruleDef.bounds)
+      )
+    }).toArray
+  }
+
+}

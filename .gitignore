@@ -11,3 +11,5 @@ project/target/
 /target/
 /project/build.properties
 /src/main/scala/com/databricks/labs/validation/LocalTest.scala
+/python/venv/
+python/.idea/
