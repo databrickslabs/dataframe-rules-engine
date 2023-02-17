@@ -7,7 +7,7 @@ from databricks.labs.validation.test.local_spark_singleton import SparkSingleton
 import pyspark.sql.functions as F
 
 
-class TestRule(unittest.TestCase):
+class TestRuleSet(unittest.TestCase):
 
     def setUp(self):
         self.spark = SparkSingleton.get_instance()
