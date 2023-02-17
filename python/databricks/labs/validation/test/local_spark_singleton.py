@@ -1,4 +1,6 @@
 from pyspark.sql import SparkSession
+from pyspark import SparkConf
+import os
 
 
 class SparkSingleton:
@@ -10,12 +12,19 @@ class SparkSingleton:
         """Create a Spark instance.
         :return: A Spark instance
         """
+        config = SparkConf().setAll([("spark.driver.extraClassPath",
+                                      os.environ["RULES_ENGINE_JAR"])])
         return (SparkSession.builder
+                .config(conf=config)
+                .appName("DataFrame Rules Engine")
                 .getOrCreate())
 
     @classmethod
     def get_local_instance(cls):
+        config = SparkConf().setAll([("spark.driver.extraClassPath",
+                                      os.environ["RULES_ENGINE_JAR"])])
         return (SparkSession.builder
+                .config(conf=config)
                 .master("local[*]")
                 .appName("DataFrame Rules Engine")
                 .getOrCreate())

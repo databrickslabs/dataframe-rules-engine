@@ -8,11 +8,10 @@ import pyspark.sql.functions as F
 
 class TestStructures(unittest.TestCase):
 
-    def setup(self):
+    def setUp(self):
         self.spark = SparkSingleton.get_instance()
 
     def test_get_returns(self):
-        self.setup()
 
         # Test Bounds
         sku_price_bounds = Bounds(1.0, 1000.0)
@@ -33,8 +32,5 @@ class TestStructures(unittest.TestCase):
         assert (min_max_w_agg.bounds.lower == 1.0)
         assert (min_max_w_agg.bounds.upper == 1000.0)
 
-        # Clean up on aisle 2!
-        self.tear_down()
-
-    def tear_down(self):
+    def tearDown(self):
         self.spark.stop()

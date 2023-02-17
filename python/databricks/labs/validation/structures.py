@@ -1,23 +1,26 @@
 import pyspark
 from typing import List
 
+from databricks.labs.validation.local_spark_singleton import SparkSingleton
+
 
 class Bounds:
 
-    def __init__(self,
-                 lower: float,
-                 upper: float,
-                 lower_inclusive: bool = False,
-                 upper_inclusive: bool = False):
+    def __init__(self, lower, upper,
+                 lower_inclusive=False,
+                 upper_inclusive=False):
         self.lower = lower
         self.upper = upper
         self.lower_inclusive = lower_inclusive
         self.upper_inclusive = upper_inclusive
+        self._spark = SparkSingleton.get_instance()
+        self._jBounds = self._spark._jvm.com.databricks.labs.validation.utils.Structures.Bounds(lower, upper,
+                                                                                                lower_inclusive,
+                                                                                                upper_inclusive)
 
-    def validation_logic(self, column: pyspark.sql.Column):
-        lower_logic = (column >= self.lower) if self.lower_inclusive else (column > self.lower)
-        upper_logic = (column <= self.upper) if self.upper_inclusive else (column < self.upper)
-        return lower_logic and upper_logic
+    def validation_logic(self, col):
+        jCol = col._jc
+        return self._spark._jvm.com.databricks.labs.validation.utils.Structures.Bounds.validation_logic(jCol)
 
 
 class MinMaxRuleDef:
